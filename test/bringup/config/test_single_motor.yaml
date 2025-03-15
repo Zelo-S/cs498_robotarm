@@ -8,11 +8,13 @@ controller_manager:
     forward_position_controller:
       type: forward_command_controller/ForwardCommandController
 
+    diagnostic_broadcaster:
+      type: diagnostic_broadcaster/DiagnosticBroadcaster
 
 
 forward_position_controller:
   ros__parameters:
     type: forward_command_controller/ForwardCommandController
     joints:
-      - joint_1
+      - actuator_1_joint
     interface_name: position

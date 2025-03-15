@@ -1,0 +1,30 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    forward_position_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    diagnostic_broadcaster:
+      type: diagnostic_broadcaster/DiagnosticBroadcaster
+
+forward_position_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    joints:
+      - actuator_1_joint
+      - actuator_2_joint
+      - actuator_3_joint
+      - actuator_4_joint
+      - actuator_5_joint
+      - actuator_6_joint
+      - actuator_7_joint
+      - actuator_8_joint
+      - actuator_9_joint
+      - actuator_10_joint
+      - actuator_11_joint
+      - actuator_12_joint
+    interface_name: position

@@ -1,0 +1,153 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="test_twelve_moteuses">
+
+  <xacro:property name="PI" value="3.141592"/>
+
+  <xacro:property name="rotor_inertia" value="1.0"/>
+
+  <xacro:property name="motor_1_position_max" value="${10 * PI}"/>
+  <xacro:property name="motor_1_position_min" value="${-10 * PI}"/>
+  <xacro:property name="motor_1_velocity_max" value="10.0"/>
+  <xacro:property name="motor_1_effort_max" value="0.2"/>
+
+  <xacro:property name="motor_2_position_max" value="${10 * PI}"/>
+  <xacro:property name="motor_2_position_min" value="${-10 * PI}"/>
+  <xacro:property name="motor_2_velocity_max" value="10.0"/>
+  <xacro:property name="motor_2_effort_max" value="0.2"/>
+
+  <xacro:property name="motor_3_position_max" value="${10 * PI}"/>
+  <xacro:property name="motor_3_position_min" value="${-10 * PI}"/>
+  <xacro:property name="motor_3_velocity_max" value="10.0"/>
+  <xacro:property name="motor_3_effort_max" value="0.2"/>
+
+  <xacro:property name="motor_4_position_max" value="${10 * PI}"/>
+  <xacro:property name="motor_4_position_min" value="${-10 * PI}"/>
+  <xacro:property name="motor_4_velocity_max" value="10.0"/>
+  <xacro:property name="motor_4_effort_max" value="0.2"/>
+
+  <xacro:property name="motor_5_position_max" value="${10 * PI}"/>
+  <xacro:property name="motor_5_position_min" value="${-10 * PI}"/>
+  <xacro:property name="motor_5_velocity_max" value="10.0"/>
+  <xacro:property name="motor_5_effort_max" value="0.2"/>
+
+  <xacro:property name="motor_6_position_max" value="${10 * PI}"/>
+  <xacro:property name="motor_6_position_min" value="${-10 * PI}"/>
+  <xacro:property name="motor_6_velocity_max" value="10.0"/>
+  <xacro:property name="motor_6_effort_max" value="0.2"/>
+
+  <xacro:property name="motor_7_position_max" value="${10 * PI}"/>
+  <xacro:property name="motor_7_position_min" value="${-10 * PI}"/>
+  <xacro:property name="motor_7_velocity_max" value="10.0"/>
+  <xacro:property name="motor_7_effort_max" value="0.2"/>
+
+  <xacro:property name="motor_8_position_max" value="${10 * PI}"/>
+  <xacro:property name="motor_8_position_min" value="${-10 * PI}"/>
+  <xacro:property name="motor_8_velocity_max" value="10.0"/>
+  <xacro:property name="motor_8_effort_max" value="0.2"/>
+
+  <xacro:property name="motor_9_position_max" value="${10 * PI}"/>
+  <xacro:property name="motor_9_position_min" value="${-10 * PI}"/>
+  <xacro:property name="motor_9_velocity_max" value="10.0"/>
+  <xacro:property name="motor_9_effort_max" value="0.2"/>
+
+  <xacro:property name="motor_10_position_max" value="${10 * PI}"/>
+  <xacro:property name="motor_10_position_min" value="${-10 * PI}"/>
+  <xacro:property name="motor_10_velocity_max" value="10.0"/>
+  <xacro:property name="motor_10_effort_max" value="0.2"/>
+
+  <xacro:property name="motor_11_position_max" value="${10 * PI}"/>
+  <xacro:property name="motor_11_position_min" value="${-10 * PI}"/>
+  <xacro:property name="motor_11_velocity_max" value="10.0"/>
+  <xacro:property name="motor_11_effort_max" value="0.2"/>
+
+  <xacro:property name="motor_12_position_max" value="${10 * PI}"/>
+  <xacro:property name="motor_12_position_min" value="${-10 * PI}"/>
+  <xacro:property name="motor_12_velocity_max" value="10.0"/>
+  <xacro:property name="motor_12_effort_max" value="0.2"/>
+
+  <!-- Single joint macro -->
+  <xacro:include filename="core/single_joint.urdf.xacro"/>
+
+  <xacro:single_joint_macro name="actuator_1" parent_name="world"  x="0.0" y="0.0"  inertia="${rotor_inertia}" pos_max="${motor_1_position_max}"  pos_min="${motor_1_position_min}"  vel_max="${motor_1_velocity_max}"  effort_max="${motor_1_effort_max}"/>
+  <xacro:single_joint_macro name="actuator_2" parent_name="world"  x="0.0" y="1.0"  inertia="${rotor_inertia}" pos_max="${motor_2_position_max}"  pos_min="${motor_2_position_min}"  vel_max="${motor_2_velocity_max}"  effort_max="${motor_2_effort_max}"/>
+  <xacro:single_joint_macro name="actuator_3" parent_name="world"  x="0.0" y="2.0"  inertia="${rotor_inertia}" pos_max="${motor_3_position_max}"  pos_min="${motor_3_position_min}"  vel_max="${motor_3_velocity_max}"  effort_max="${motor_3_effort_max}"/>
+  <xacro:single_joint_macro name="actuator_4" parent_name="world"  x="0.0" y="3.0"  inertia="${rotor_inertia}" pos_max="${motor_4_position_max}"  pos_min="${motor_4_position_min}"  vel_max="${motor_4_velocity_max}"  effort_max="${motor_4_effort_max}"/>
+  <xacro:single_joint_macro name="actuator_5" parent_name="world"  x="0.0" y="4.0"  inertia="${rotor_inertia}" pos_max="${motor_5_position_max}"  pos_min="${motor_5_position_min}"  vel_max="${motor_5_velocity_max}"  effort_max="${motor_5_effort_max}"/>
+  <xacro:single_joint_macro name="actuator_6" parent_name="world"  x="0.0" y="5.0"  inertia="${rotor_inertia}" pos_max="${motor_6_position_max}"  pos_min="${motor_6_position_min}"  vel_max="${motor_6_velocity_max}"  effort_max="${motor_6_effort_max}"/>
+  <xacro:single_joint_macro name="actuator_7" parent_name="world"  x="-1.0" y="0.0" inertia="${rotor_inertia}" pos_max="${motor_7_position_max}"  pos_min="${motor_7_position_min}"  vel_max="${motor_7_velocity_max}"  effort_max="${motor_7_effort_max}"/>
+  <xacro:single_joint_macro name="actuator_8" parent_name="world"  x="-1.0" y="1.0" inertia="${rotor_inertia}" pos_max="${motor_8_position_max}"  pos_min="${motor_8_position_min}"  vel_max="${motor_8_velocity_max}"  effort_max="${motor_8_effort_max}"/>
+  <xacro:single_joint_macro name="actuator_9" parent_name="world"  x="-1.0" y="2.0" inertia="${rotor_inertia}" pos_max="${motor_9_position_max}"  pos_min="${motor_9_position_min}"  vel_max="${motor_9_velocity_max}"  effort_max="${motor_9_effort_max}"/>
+  <xacro:single_joint_macro name="actuator_10" parent_name="world" x="-1.0" y="3.0" inertia="${rotor_inertia}" pos_max="${motor_10_position_max}" pos_min="${motor_10_position_min}" vel_max="${motor_10_velocity_max}" effort_max="${motor_10_effort_max}"/>
+  <xacro:single_joint_macro name="actuator_11" parent_name="world" x="-1.0" y="4.0" inertia="${rotor_inertia}" pos_max="${motor_11_position_max}" pos_min="${motor_11_position_min}" vel_max="${motor_11_velocity_max}" effort_max="${motor_11_effort_max}"/>
+  <xacro:single_joint_macro name="actuator_12" parent_name="world" x="-1.0" y="5.0" inertia="${rotor_inertia}" pos_max="${motor_12_position_max}" pos_min="${motor_12_position_min}" vel_max="${motor_12_velocity_max}" effort_max="${motor_12_effort_max}"/>
+
+  <ros2_control name="pi3hat_hardware_interface" type="system">
+    <hardware>
+      <plugin>pi3hat_hardware_interface/Pi3HatHardwareInterface</plugin>
+      <param name="imu_mounting_deg.yaw">0</param>
+      <param name="imu_mounting_deg.pitch">0</param>
+      <param name="imu_mounting_deg.roll">0</param>
+      <param name="imu_sampling_rate">1000</param>
+
+      <param name="can_1_fdcan_frame">true</param>
+      <param name="can_1_automatic_retransmission">true</param>
+      <param name="can_1_bitrate_switch">true</param>
+
+      <param name="can_2_fdcan_frame">true</param>
+      <param name="can_2_automatic_retransmission">true</param>
+      <param name="can_2_bitrate_switch">true</param>
+
+      <param name="can_3_fdcan_frame">true</param>
+      <param name="can_3_automatic_retransmission">true</param>
+      <param name="can_3_bitrate_switch">true</param>
+
+      <param name="can_4_fdcan_frame">true</param>
+      <param name="can_4_automatic_retransmission">true</param>
+      <param name="can_4_bitrate_switch">true</param>
+
+      <param name="can_5_fdcan_frame">true</param>
+      <param name="can_5_automatic_retransmission">true</param>
+      <param name="can_5_bitrate_switch">true</param>
+    </hardware>
+
+        <!-- Single motor hardware macro -->
+        <xacro:include filename="core/single_motor_hardware.urdf.xacro"/>
+
+        <xacro:single_motor_hardware_macro name="actuator_1"  type="moteus" can_bus="1" can_id="1"  direction="1" offset="0.0" pos_max="${motor_1_position_max}"  pos_min="${motor_1_position_min}"  vel_max="${motor_1_velocity_max}"  torque_max="${motor_1_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_2"  type="moteus" can_bus="1" can_id="2"  direction="1" offset="0.0" pos_max="${motor_2_position_max}"  pos_min="${motor_2_position_min}"  vel_max="${motor_2_velocity_max}"  torque_max="${motor_2_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_3"  type="moteus" can_bus="1" can_id="3"  direction="1" offset="0.0" pos_max="${motor_3_position_max}"  pos_min="${motor_3_position_min}"  vel_max="${motor_3_velocity_max}"  torque_max="${motor_3_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_4"  type="moteus" can_bus="2" can_id="4"  direction="1" offset="0.0" pos_max="${motor_4_position_max}"  pos_min="${motor_4_position_min}"  vel_max="${motor_4_velocity_max}"  torque_max="${motor_4_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_5"  type="moteus" can_bus="2" can_id="5"  direction="1" offset="0.0" pos_max="${motor_5_position_max}"  pos_min="${motor_5_position_min}"  vel_max="${motor_5_velocity_max}"  torque_max="${motor_5_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_6"  type="moteus" can_bus="2" can_id="6"  direction="1" offset="0.0" pos_max="${motor_6_position_max}"  pos_min="${motor_6_position_min}"  vel_max="${motor_6_velocity_max}"  torque_max="${motor_6_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_7"  type="moteus" can_bus="3" can_id="7"  direction="1" offset="0.0" pos_max="${motor_7_position_max}"  pos_min="${motor_7_position_min}"  vel_max="${motor_7_velocity_max}"  torque_max="${motor_7_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_8"  type="moteus" can_bus="3" can_id="8"  direction="1" offset="0.0" pos_max="${motor_8_position_max}"  pos_min="${motor_8_position_min}"  vel_max="${motor_8_velocity_max}"  torque_max="${motor_8_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_9"  type="moteus" can_bus="3" can_id="9"  direction="1" offset="0.0" pos_max="${motor_9_position_max}"  pos_min="${motor_9_position_min}"  vel_max="${motor_9_velocity_max}"  torque_max="${motor_9_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_10" type="moteus" can_bus="4" can_id="10" direction="1" offset="0.0" pos_max="${motor_10_position_max}" pos_min="${motor_10_position_min}" vel_max="${motor_10_velocity_max}" torque_max="${motor_10_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_11" type="moteus" can_bus="4" can_id="11" direction="1" offset="0.0" pos_max="${motor_11_position_max}" pos_min="${motor_11_position_min}" vel_max="${motor_11_velocity_max}" torque_max="${motor_11_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_12" type="moteus" can_bus="4" can_id="12" direction="1" offset="0.0" pos_max="${motor_12_position_max}" pos_min="${motor_12_position_min}" vel_max="${motor_12_velocity_max}" torque_max="${motor_12_effort_max}"/>
+        
+        <!-- <transmission name="transmission1">
+            <plugin>transmission_interface/SimpleTransmission</plugin>
+            <actuator name="actuator_1" role="actuator1"/>
+            <joint name="joint_1" role="joint1">
+                <mechanical_reduction>16.0</mechanical_reduction>
+                <offset>0.0</offset>
+            </joint>
+        </transmission> -->
+
+      <sensor name="imu_sensor">
+          <state_interface name="orientation.x"/>
+          <state_interface name="orientation.y"/>
+          <state_interface name="orientation.z"/>
+          <state_interface name="orientation.w"/>
+          <state_interface name="angular_velocity.x"/>
+          <state_interface name="angular_velocity.y"/>
+          <state_interface name="angular_velocity.z"/>
+          <state_interface name="linear_acceleration.x"/>
+          <state_interface name="linear_acceleration.y"/>
+          <state_interface name="linear_acceleration.z"/>
+      </sensor>
+  </ros2_control>
+
+
+</robot>

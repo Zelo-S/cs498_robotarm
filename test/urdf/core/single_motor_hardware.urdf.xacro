@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="single_motor_hardware">
+
+  <xacro:macro name="single_motor_hardware_macro" params="name type can_bus can_id direction offset pos_max pos_min vel_max torque_max">
+    <joint name="${name}_joint">
+        <param name="controller_type">${type}</param>
+        <param name="controller_can_bus">${can_bus}</param>
+        <param name="controller_can_id">${can_id}</param>
+        <param name="motor_direction">${direction}</param>
+
+        <param name="motor_position_offset">${offset}</param>
+        <param name="motor_position_max">${pos_max}</param>
+        <param name="motor_position_min">${pos_min}</param>
+        <param name="motor_velocity_max">${vel_max}</param>
+        <param name="motor_torque_max">${torque_max}</param>
+
+        <command_interface name="position"/>
+        <command_interface name="velocity"/>
+        <command_interface name="effort"/>
+
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+        <state_interface name="temperature"/>
+      </joint>
+  </xacro>
+</robot>

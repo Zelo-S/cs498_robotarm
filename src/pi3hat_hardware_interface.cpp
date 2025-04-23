@@ -135,6 +135,7 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_init(const hardwa
     }
 
     /* Initialize the Pi3Hat and realtime options */
+
     pi3hat_ =  std::make_shared<mjbots::pi3hat::Pi3Hat>(config);
     mjbots::pi3hat::ConfigureRealtime(0);
     
@@ -317,6 +318,11 @@ std::vector<hardware_interface::StateInterface> Pi3HatHardwareInterface::export_
             {
                 state_interfaces.emplace_back(hardware_interface::StateInterface(
                     info_.joints[i].name, "temperature", &(joint_states_[i].temperature_)));
+            }
+            else if(state_interface.name == "fault")
+            {
+                state_interfaces.emplace_back(hardware_interface::StateInterface(
+                    info_.joints[i].name, "fault", &(joint_states_[i].fault_)));
             }
             else
             {

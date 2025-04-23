@@ -687,6 +687,9 @@ void Pi3HatHardwareInterface::controllers_get_states()
     {
         int joint_id = controller_joint_map_.at(rx_can_frames_[i].id);
         controller_bridges_[joint_id].get_state(rx_can_frames_[i], controller_states_[joint_id]);
+
+        joint_states_[joint_id].temperature_ = controller_states_[joint_id].temperature_;
+        joint_states_[joint_id].fault_ = controller_states_[joint_id].fault_;
     }
 }
 

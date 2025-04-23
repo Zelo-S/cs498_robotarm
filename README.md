@@ -15,11 +15,12 @@ for inspiration and making this work much more easier!
   - position [`radians]`
   - velocity [`radians/s`]
   - effort [`Nm`]
-- :ballot_box_with_check: 4 joint state interfaces:
+- :ballot_box_with_check: 5 joint state interfaces:
   -  position [`radians/s`]
   -  velocity [`radians/s`]
   -  effort [`Nm`]
   -  temperature [`Celcius`]
+  -  fault [`int`]
 - :ballot_box_with_check: 10 IMU state interfaces (ready to use for [IMU Sensor Broadcaster](https://control.ros.org/master/doc/ros2_controllers/imu_sensor_broadcaster/doc/userdoc.html)):
   - orientation (`x`, `y`, `z` and `w`)
   - angular velocity (`x`, `y`, `z`) [`radians/s`]
@@ -125,6 +126,7 @@ colcon build --packages-select pi3hat_hardware_interface
   <state_interface name = "velocity"/>
   <state_interface name = "effort"/>
   <state_interface name = "temperature"/>
+  <state_interface name = "fault"/>
 </joint>
 ...
 ```

@@ -22,7 +22,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "urdf_file",
-            default_value="test_single_motor.urdf.xacro",
+            default_value="test_single_moteus.urdf.xacro",
         )
     )
 

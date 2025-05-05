@@ -6,12 +6,14 @@
     <xacro:property name="rotor_inertia" value="1.0"/>
     <xacro:property name="motor_position_max" value="${10 * PI}"/>
     <xacro:property name="motor_position_min" value="${-10 * PI}"/>
-    <xacro:property name="motor_velocity_max" value="10.0"/>
+    <xacro:property name="motor_velocity_max" value="2.0"/>
     <xacro:property name="motor_effort_max" value="0.2"/>
 
     
     <!-- Single joint macro -->
     <xacro:include filename="core/single_joint.urdf.xacro"/>
+
+    <link name="world" />
 
     <xacro:single_joint_macro name="actuator_1" parent_name="world" x="0.0" y="0.0" inertia="${rotor_inertia}" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" effort_max="${motor_effort_max}"/>
 
@@ -22,7 +24,7 @@
             <param name="imu_mounting_deg.pitch">0</param>
             <param name="imu_mounting_deg.roll">0</param>
             <param name="imu_sampling_rate">1000</param>
-
+            
             <param name="can_1_fdcan_frame">true</param>
             <param name="can_1_automatic_retransmission">true</param>
             <param name="can_1_bitrate_switch">true</param>
@@ -48,13 +50,13 @@
         <!-- Single motor hardware macro -->
         <xacro:include filename="core/single_motor_hardware.urdf.xacro"/>
 
-        <xacro:single_motor_hardware_macro name="actuator_1" type="moteus" can_bus="1" can_id="1" direction="1" offset="0.0" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" torque_max="${motor_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_1" type="moteus" can_bus="1" can_id="2" direction="1" offset="0.0" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" torque_max="${motor_effort_max}"/>
 
         <!-- <transmission name="transmission1">
             <plugin>transmission_interface/SimpleTransmission</plugin>
             <actuator name="actuator_1" role="actuator1"/>
             <joint name="joint_1" role="joint1">
-                <mechanical_reduction>16.0</mechanical_reduction>
+                <mechanical_reduction>10.0</mechanical_reduction>
                 <offset>0.0</offset>
             </joint>
         </transmission> -->

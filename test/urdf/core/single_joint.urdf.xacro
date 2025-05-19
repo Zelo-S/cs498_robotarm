@@ -27,11 +27,6 @@
         </visual>
     </link>
 
-    <gazebo reference="${name}_stator">
-        <material>Gazebo/Red</material>
-    </gazebo>
-
-
     <link name="${name}_rotor">
         <inertial>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
@@ -58,10 +53,6 @@
             </material>
         </visual>
     </link>
-
-    <gazebo reference="${name}_rotor">
-        <material>Gazebo/Green</material>
-    </gazebo>
 
     <joint name="${parent_name}_${name}" type="fixed">
         <origin xyz="${x} ${y} ${stator_length/2}" rpy="0.0 0.0 0.0"/>

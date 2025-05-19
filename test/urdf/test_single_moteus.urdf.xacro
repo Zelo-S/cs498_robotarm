@@ -13,7 +13,7 @@
     <!-- Single joint macro -->
     <xacro:include filename="core/single_joint.urdf.xacro"/>
 
-    <link name="world" />
+    <link name="world"/>
 
     <xacro:single_joint_macro name="actuator_1" parent_name="world" x="0.0" y="0.0" inertia="${rotor_inertia}" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" effort_max="${motor_effort_max}"/>
 
@@ -23,7 +23,7 @@
             <param name="imu_mounting_deg.yaw">0</param>
             <param name="imu_mounting_deg.pitch">0</param>
             <param name="imu_mounting_deg.roll">0</param>
-            <param name="imu_sampling_rate">1000</param>
+            <param name="imu_sampling_rate">100</param>
             
             <param name="can_1_fdcan_frame">true</param>
             <param name="can_1_automatic_retransmission">true</param>

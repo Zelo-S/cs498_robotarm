@@ -27,6 +27,7 @@ for inspiration and making this work much more easier!
   - linear acceleration (`x`, `y`, `z`) [`m/s^2`]
 
 #### :warning: IMPORTANT: User don't have to set up every command or state interface in `xml` file, but remeber to set up your controller accordingly e.g. in order to control velocity in `moteus` controller, u need to set up `kp` coefficient to 0.0. 
+#### :warning: IMPORTANT: Every joint needs transmission. If user is not using any real transmission, define `SimpleTransmission` with `mechanical_reduction` equals `1.0` and `offset` equals `0.0`.
 
 ## Hardware
 - Raspberry Pi 4 (more RAM the better)

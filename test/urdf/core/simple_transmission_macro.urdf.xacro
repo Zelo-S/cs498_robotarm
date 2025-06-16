@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="simple_transmission_macro">
+
+	<xacro:macro name="simple_transmission_macro" params="transmission_name actuator_name joint_name reduction offset">
+
+		<transmission name="${transmission_name}">
+
+            <plugin>transmission_interface/SimpleTransmission</plugin>
+            <actuator name="${actuator_name}" role="actuator1"/>
+            <joint name="${joint_name}" role="joint1">
+                <mechanical_reduction>${reduction}</mechanical_reduction>
+                <offset>${offset}</offset>
+            </joint>
+
+    	</transmission>
+
+	</xacro:macro>
+
+</robot>

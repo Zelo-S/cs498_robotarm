@@ -190,6 +190,8 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_activate(const rc
     /* Make start from actual motor position to 0.0 (offset included in controller bridges) */
     RCLCPP_INFO(*logger_, "Motors reaching starting position!");
 
+    reset_joint_data();
+
     controllers_make_commands();
     pi3hat_->Cycle(pi3hat_input_);
     ::usleep(1000000);
@@ -202,31 +204,12 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_activate(const rc
 
 hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_deactivate(const rclcpp_lifecycle::State &previous_state)
 {
-    /* Set all commands, states and transmission passthrough to end state */
-    for(int i = 0; i < joint_controller_number_; ++i)
-    {
-        controller_commands_[i].position_ = 0;
-        controller_commands_[i].velocity_ = 0;
-        controller_commands_[i].torque_ = 0;
-
-        controller_transmission_passthrough_[i].position_ = 0;
-        controller_transmission_passthrough_[i].velocity_ = 0;
-        controller_transmission_passthrough_[i].torque_ = 0;
-
-
-        joint_commands_[i].position_ = 0;
-        joint_commands_[i].velocity_ = 0;
-        joint_commands_[i].torque_ = 0;
-
-        joint_transmission_passthrough_[i].position_ = 0;
-        joint_transmission_passthrough_[i].velocity_ = 0;
-        joint_transmission_passthrough_[i].torque_ = 0;
-    }
-
     
     /* Make slow start from actual motor position to 0.0 for 10 seconds 
         (offset included in controller bridges) */
     RCLCPP_INFO(*logger_, "Motors reaching starting position!");
+
+    reset_joint_data();
 
     controllers_make_commands();
     pi3hat_->Cycle(pi3hat_input_);
@@ -736,6 +719,31 @@ bool Pi3HatHardwareInterface::string_to_bool(const std::string& str)
     else
     {
         throw std::invalid_argument("Wrong string value for boolean");
+    }
+}
+
+void Pi3HatHardwareInterface::reset_joint_data()
+{
+    /* Set all commands, states and transmission passthrough to end state */
+
+    for(int i = 0; i < joint_controller_number_; ++i)
+    {
+        controller_commands_[i].position_ = 0;
+        controller_commands_[i].velocity_ = 0;
+        controller_commands_[i].torque_ = 0;
+
+        controller_transmission_passthrough_[i].position_ = 0;
+        controller_transmission_passthrough_[i].velocity_ = 0;
+        controller_transmission_passthrough_[i].torque_ = 0;
+
+
+        joint_commands_[i].position_ = 0;
+        joint_commands_[i].velocity_ = 0;
+        joint_commands_[i].torque_ = 0;
+
+        joint_transmission_passthrough_[i].position_ = 0;
+        joint_transmission_passthrough_[i].velocity_ = 0;
+        joint_transmission_passthrough_[i].torque_ = 0;
     }
 }
 

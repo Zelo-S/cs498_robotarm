@@ -202,6 +202,8 @@ namespace pi3hat_hardware_interface
 
         /* UTILITY FUNCTIONS */
         bool string_to_bool(const std::string& str);
+
+        void reset_joint_data();
     }; 
 };
 

@@ -356,7 +356,7 @@ hardware_interface::return_type Pi3HatHardwareInterface::write(const rclcpp::Tim
     {
         if (std::isnan(joint_commands_[i].position_) || std::isnan(joint_commands_[i].velocity_) || std::isnan(joint_commands_[i].torque_))
         {
-            RCLCPP_WARN(rclcpp::get_logger("Pi3HatHardwareInterface"), "NaN command for actuator");
+            RCLCPP_WARN(*logger_, "NaN command for actuator");
             break;
         }
     }
@@ -369,7 +369,7 @@ hardware_interface::return_type Pi3HatHardwareInterface::write(const rclcpp::Tim
 
     if (result.error)
     {
-        RCLCPP_ERROR(rclcpp::get_logger("Pi3HatHardwareInterface"), "Pi3Hat::Cycle() failed!");
+        RCLCPP_ERROR(*logger_, "Pi3Hat::Cycle() failed!");
         return hardware_interface::return_type::ERROR;
     }
 

@@ -47,7 +47,7 @@ class ControllerBridge
 
 
     /* Transform controller command to data in TX CAN frame */
-    void make_command(CanFrame& tx_frame, ControllerCommand& command) const;
+    void make_command(CanFrame& tx_frame, const ControllerCommand& command) const;
 
     /* Transform query to data in TX CAN frame */
     void make_query(CanFrame& tx_frame) const;

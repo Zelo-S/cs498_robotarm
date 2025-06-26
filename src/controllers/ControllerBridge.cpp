@@ -48,17 +48,18 @@ ControllerBridge& ControllerBridge::operator=(ControllerBridge&& other_controlle
     return *this;
 }
 
-void ControllerBridge::make_command(CanFrame& tx_frame, ControllerCommand& command) const
+void ControllerBridge::make_command(CanFrame& tx_frame, const ControllerCommand& command) const
 {
+    ControllerCommand clamped_command;
     /* Basic transformations before sending data to wrapper */
-    command.position_ = params_.direction_* std::clamp(command.position_,
+    clamped_command.position_ = params_.direction_* std::clamp(command.position_,
      params_.position_min_, params_.position_max_) + params_.position_offset_;
-    command.velocity_ = params_.direction_* std::clamp(command.velocity_, -params_.velocity_max_, params_.velocity_max_);
-    command.torque_ = params_.direction_* std::clamp(command.torque_, -params_.torque_max_, params_.torque_max_);
+    clamped_command.velocity_ = params_.direction_* std::clamp(command.velocity_, -params_.velocity_max_, params_.velocity_max_);
+    clamped_command.torque_ = params_.direction_* std::clamp(command.torque_, -params_.torque_max_, params_.torque_max_);
 
     tx_frame.expect_reply = true;
     
-    wrapper_->command_to_tx_frame(tx_frame, command);
+    wrapper_->command_to_tx_frame(tx_frame, clamped_command);
     
 }
 

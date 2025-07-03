@@ -741,7 +741,7 @@ void Pi3HatHardwareInterface::reset_joint_data()
 
     for(int i = 0; i < joint_controller_number_; ++i)
     {
-        controller_commands_[i].position_ = 0;
+        controller_commands_[i].position_ = controller_states_[i].position_; // start and end with current position
         controller_commands_[i].velocity_ = 0;
         controller_commands_[i].torque_ = 0;
 

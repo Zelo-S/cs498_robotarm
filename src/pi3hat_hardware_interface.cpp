@@ -147,9 +147,13 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_configure(const r
 
     /* Initialize all motors/remove all flags and make query for state */
 
+    using namespace std::literals::chrono_literals;
+
+    const auto sleep_time = 10ms;
+
     controllers_init();
     auto result = pi3hat_->Cycle(pi3hat_input_);
-    ::usleep(1000);
+    std::this_thread::sleep_for(sleep_time);
 
     /* Get all rx_frames ids (be sure there are no duplicates) */
 
@@ -159,7 +163,7 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_configure(const r
     {
         controllers_make_queries();
         result = pi3hat_->Cycle(pi3hat_input_);
-        ::usleep(1000);
+        std::this_thread::sleep_for(sleep_time);
         for(int i = 0; i < joint_controller_number_; ++i)
         {
             rx_ids[i] = rx_can_frames_[i].id;
@@ -190,11 +194,14 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_activate(const rc
     /* Make start from actual motor position to 0.0 (offset included in controller bridges) */
     RCLCPP_INFO(*logger_, "Motors reaching starting position!");
 
+    using namespace std::literals::chrono_literals;
+    const auto sleep_time = 10ms;
+
     reset_joint_data();
 
     controllers_make_commands();
     pi3hat_->Cycle(pi3hat_input_);
-    ::usleep(1000);
+    std::this_thread::sleep_for(sleep_time);
     controllers_get_states();
     
     RCLCPP_INFO(*logger_, "Motors reached starting position!");
@@ -209,11 +216,14 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_deactivate(const 
         (offset included in controller bridges) */
     RCLCPP_INFO(*logger_, "Motors reaching starting position!");
 
+    using namespace std::literals::chrono_literals;
+    const auto sleep_time = 10ms;
+
     reset_joint_data();
 
     controllers_make_commands();
     pi3hat_->Cycle(pi3hat_input_);
-    ::usleep(1000);
+    std::this_thread::sleep_for(sleep_time);
     controllers_get_states();
     
     RCLCPP_INFO(*logger_, "Motors reached starting position!");
@@ -224,9 +234,12 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_cleanup(const rcl
 {
 
     /* Deinitialize all motors/remove all flags */
+
+    using namespace std::literals::chrono_literals;
+    const auto sleep_time = 10ms;
     controllers_init();
     pi3hat_->Cycle(pi3hat_input_);
-    ::usleep(1000);
+    std::this_thread::sleep_for(sleep_time);
 
     return hardware_interface::CallbackReturn::SUCCESS;
 }

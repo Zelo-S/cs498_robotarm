@@ -149,7 +149,7 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_configure(const r
 
     controllers_init();
     auto result = pi3hat_->Cycle(pi3hat_input_);
-    ::usleep(1000000);
+    ::usleep(1000);
 
     /* Get all rx_frames ids (be sure there are no duplicates) */
 
@@ -159,7 +159,7 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_configure(const r
     {
         controllers_make_queries();
         result = pi3hat_->Cycle(pi3hat_input_);
-        ::usleep(100000);
+        ::usleep(1000);
         for(int i = 0; i < joint_controller_number_; ++i)
         {
             rx_ids[i] = rx_can_frames_[i].id;
@@ -194,7 +194,7 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_activate(const rc
 
     controllers_make_commands();
     pi3hat_->Cycle(pi3hat_input_);
-    ::usleep(1000000);
+    ::usleep(1000);
     controllers_get_states();
     
     RCLCPP_INFO(*logger_, "Motors reached starting position!");
@@ -213,7 +213,7 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_deactivate(const 
 
     controllers_make_commands();
     pi3hat_->Cycle(pi3hat_input_);
-    ::usleep(1000000);
+    ::usleep(1000);
     controllers_get_states();
     
     RCLCPP_INFO(*logger_, "Motors reached starting position!");
@@ -226,7 +226,7 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_cleanup(const rcl
     /* Deinitialize all motors/remove all flags */
     controllers_init();
     pi3hat_->Cycle(pi3hat_input_);
-    ::usleep(1000000);
+    ::usleep(1000);
 
     return hardware_interface::CallbackReturn::SUCCESS;
 }

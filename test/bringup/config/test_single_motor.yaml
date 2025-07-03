@@ -11,6 +11,8 @@ controller_manager:
     diagnostic_broadcaster:
       type: diagnostic_broadcaster/DiagnosticBroadcaster
 
+    imu_sensor_broadcaster:
+      type: imu_sensor_broadcaster/IMUSensorBroadcaster
 
 forward_position_controller:
   ros__parameters:
@@ -18,3 +20,9 @@ forward_position_controller:
     joints:
       - actuator_1_joint
     interface_name: position
+
+imu_sensor_broadcaster:
+  ros__parameters:
+
+    sensor_name: "imu_sensor"
+    frame_id:  "actuator_1_stator"

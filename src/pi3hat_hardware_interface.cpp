@@ -184,6 +184,7 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_configure(const r
 
     /* Get states with prepared controller -> joint map */
     controllers_get_states();
+
     controller_to_joint_transform();
 
     return hardware_interface::CallbackReturn::SUCCESS;
@@ -200,10 +201,13 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_activate(const rc
 
     reset_joint_data();
 
+    joint_to_controller_transform();
+
     controllers_make_commands();
     pi3hat_->Cycle(pi3hat_input_);
     std::this_thread::sleep_for(sleep_time);
     controllers_get_states();
+
     controller_to_joint_transform();
     
     RCLCPP_INFO(*logger_, "Motors reached starting position!");
@@ -223,10 +227,14 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_deactivate(const 
 
     reset_joint_data();
 
+    joint_to_controller_transform();
+
     controllers_make_commands();
     pi3hat_->Cycle(pi3hat_input_);
     std::this_thread::sleep_for(sleep_time);
     controllers_get_states();
+
+    controller_to_joint_transform();
     
     RCLCPP_INFO(*logger_, "Motors reached starting position!");
     return hardware_interface::CallbackReturn::SUCCESS;

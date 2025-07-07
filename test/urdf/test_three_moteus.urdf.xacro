@@ -18,9 +18,9 @@
 
     <link name="world"/>
 
-    <xacro:single_joint_macro name="actuator_1" parent_name="world" x="0.0" y="0.0" inertia="${rotor_inertia}" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" effort_max="${motor_effort_max}"/>
-    <xacro:single_joint_macro name="actuator_2" parent_name="world" x="0.0" y="1.0" inertia="${rotor_inertia}" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" effort_max="${motor_effort_max}"/>
-    <xacro:single_joint_macro name="actuator_3" parent_name="world" x="0.0" y="-1.0" inertia="${rotor_inertia}" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" effort_max="${motor_effort_max}"/>
+    <xacro:single_joint_macro name="actuator_1" parent_name="world" x="0.0" y="-1.0" inertia="${rotor_inertia}" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" effort_max="${motor_effort_max}"/>
+    <xacro:single_joint_macro name="actuator_2" parent_name="world" x="0.0" y="0.0" inertia="${rotor_inertia}" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" effort_max="${motor_effort_max}"/>
+    <xacro:single_joint_macro name="actuator_3" parent_name="world" x="0.0" y="1.0" inertia="${rotor_inertia}" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" effort_max="${motor_effort_max}"/>
 
     <!-- Hardware interface for pi3hat -->
     <ros2_control name="pi3hat_hardware_interface" type="system">

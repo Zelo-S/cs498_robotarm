@@ -43,7 +43,7 @@ def generate_launch_description():
         [
             FindPackageShare("pi3hat_hardware_interface"),
             "config",
-            "test_three_motor.yaml",
+            "test_three_motors.yaml",
         ]
     )
 

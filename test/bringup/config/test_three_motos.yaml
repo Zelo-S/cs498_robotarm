@@ -8,9 +8,6 @@ controller_manager:
     forward_position_controller:
       type: forward_command_controller/ForwardCommandController
 
-    diagnostic_broadcaster:
-      type: diagnostic_broadcaster/DiagnosticBroadcaster
-
     imu_sensor_broadcaster:
       type: imu_sensor_broadcaster/IMUSensorBroadcaster
 
@@ -19,6 +16,8 @@ forward_position_controller:
     type: forward_command_controller/ForwardCommandController
     joints:
       - actuator_1_joint
+      - actuator_2_joint
+      - actuator_3_joint
     interface_name: position
 
 imu_sensor_broadcaster:

@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="test_single_moteus">
+
+    <xacro:property name="PI" value="3.141592"/>
+
+    <xacro:property name="rotor_inertia" value="1.0"/>
+    <xacro:property name="motor_position_max" value="${10 * PI}"/>
+    <xacro:property name="motor_position_min" value="${-10 * PI}"/>
+    <xacro:property name="motor_velocity_max" value="2.0"/>
+    <xacro:property name="motor_effort_max" value="0.2"/>
+
+    <xacro:property name="transmission_reduction" value="1.0"/>
+    <xacro:property name="transmission_offset" value="0.0"/>
+
+    
+    <!-- Single joint macro -->
+    <xacro:include filename="core/single_joint.urdf.xacro"/>
+
+    <link name="world"/>
+
+    <xacro:single_joint_macro name="actuator_1" parent_name="world" x="0.0" y="0.0" inertia="${rotor_inertia}" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" effort_max="${motor_effort_max}"/>
+    <xacro:single_joint_macro name="actuator_2" parent_name="world" x="0.0" y="1.0" inertia="${rotor_inertia}" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" effort_max="${motor_effort_max}"/>
+    <xacro:single_joint_macro name="actuator_3" parent_name="world" x="0.0" y="-1.0" inertia="${rotor_inertia}" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" effort_max="${motor_effort_max}"/>
+
+    <!-- Hardware interface for pi3hat -->
+    <ros2_control name="pi3hat_hardware_interface" type="system">
+        <hardware>
+            <plugin>pi3hat_hardware_interface/Pi3HatHardwareInterface</plugin>
+            <param name="imu_mounting_deg.yaw">0</param>
+            <param name="imu_mounting_deg.pitch">0</param>
+            <param name="imu_mounting_deg.roll">0</param>
+            <param name="imu_sampling_rate">100</param>
+            
+            <param name="can_1_fdcan_frame">true</param>
+            <param name="can_1_automatic_retransmission">true</param>
+            <param name="can_1_bitrate_switch">true</param>
+
+            <param name="can_2_fdcan_frame">true</param>
+            <param name="can_2_automatic_retransmission">true</param>
+            <param name="can_2_bitrate_switch">true</param>
+
+            <param name="can_3_fdcan_frame">true</param>
+            <param name="can_3_automatic_retransmission">true</param>
+            <param name="can_3_bitrate_switch">true</param>
+
+            <param name="can_4_fdcan_frame">true</param>
+            <param name="can_4_automatic_retransmission">true</param>
+            <param name="can_4_bitrate_switch">true</param>
+
+            <param name="can_5_fdcan_frame">true</param>
+            <param name="can_5_automatic_retransmission">true</param>
+            <param name="can_5_bitrate_switch">true</param> 
+        </hardware>
+
+        <!-- Single motor hardware macro -->
+        <xacro:include filename="core/single_motor_hardware.urdf.xacro"/>
+
+        <xacro:single_motor_hardware_macro name="actuator_1" type="moteus" can_bus="1" can_id="2" direction="-1.0" offset="0.0" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" torque_max="${motor_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_2" type="moteus" can_bus="2" can_id="2" direction="-1.0" offset="0.0" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" torque_max="${motor_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_3" type="moteus" can_bus="3" can_id="8" direction="-1.0" offset="0.0" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" torque_max="${motor_effort_max}"/>
+
+        <!-- Simple transmission macro -->
+        <xacro:include filename="core/simple_transmission_macro.urdf.xacro"/>
+
+        <xacro:simple_transmission_macro transmission_name="transmission_1" actuator_name="actuator_1" joint_name="actuator_1_joint" reduction="${transmission_reduction}" offset="${transmission_offset}"/>
+        <xacro:simple_transmission_macro transmission_name="transmission_2" actuator_name="actuator_2" joint_name="actuator_2_joint" reduction="${transmission_reduction}" offset="${transmission_offset}"/>
+        <xacro:simple_transmission_macro transmission_name="transmission_3" actuator_name="actuator_3" joint_name="actuator_3_joint" reduction="${transmission_reduction}" offset="${transmission_offset}"/>
+        
+        <sensor name="imu_sensor">
+            <state_interface name="orientation.x"/>
+            <state_interface name="orientation.y"/>
+            <state_interface name="orientation.z"/>
+            <state_interface name="orientation.w"/>
+            <state_interface name="angular_velocity.x"/>
+            <state_interface name="angular_velocity.y"/>
+            <state_interface name="angular_velocity.z"/>
+            <state_interface name="linear_acceleration.x"/>
+            <state_interface name="linear_acceleration.y"/>
+            <state_interface name="linear_acceleration.z"/>
+        </sensor>
+    </ros2_control>
+</robot>

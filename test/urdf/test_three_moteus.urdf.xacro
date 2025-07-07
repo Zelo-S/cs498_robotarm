@@ -55,7 +55,7 @@
         <!-- Single motor hardware macro -->
         <xacro:include filename="core/single_motor_hardware.urdf.xacro"/>
 
-        <xacro:single_motor_hardware_macro name="actuator_1" type="moteus" can_bus="1" can_id="2" direction="-1.0" offset="0.0" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" torque_max="${motor_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_1" type="moteus" can_bus="1" can_id="1" direction="-1.0" offset="0.0" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" torque_max="${motor_effort_max}"/>
         <xacro:single_motor_hardware_macro name="actuator_2" type="moteus" can_bus="2" can_id="2" direction="-1.0" offset="0.0" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" torque_max="${motor_effort_max}"/>
         <xacro:single_motor_hardware_macro name="actuator_3" type="moteus" can_bus="3" can_id="8" direction="-1.0" offset="0.0" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" torque_max="${motor_effort_max}"/>
 

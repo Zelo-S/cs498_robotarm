@@ -63,7 +63,7 @@ void MoteusWrapper::rx_frame_to_state(const CanFrame& rx_frame, ControllerState&
     state.velocity_ = result.velocity * rotation_to_radians_;
     state.torque_ = result.torque;
     state.temperature_ = result.temperature;
-    state.fault_ = result.fault;
+    state.fault_ = static_cast<double>(result.fault);
 }
 
 void MoteusWrapper::init_to_tx_frame(CanFrame& tx_frame) 

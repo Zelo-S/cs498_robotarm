@@ -36,6 +36,7 @@
 #include <functional>
 #include <fstream>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -765,6 +766,7 @@ class Socketcan : public details::TimeoutTransport {
  public:
   struct Options : details::TimeoutTransport::Options {
     std::string ifname = "can0";
+    bool ignore_errors = false;
 
     Options() {}
   };
@@ -837,8 +839,10 @@ class Socketcan : public details::TimeoutTransport {
         (((frame.brs == F::kDefault && !options_.disable_brs) ||
           frame.brs == F::kForceOn) ? CANFD_BRS : 0);
 
-    FailIf(::write(socket_, &send_frame, sizeof(send_frame)) < 0,
-           "error writing CAN");
+    const auto write_result = ::write(socket_, &send_frame, sizeof(send_frame));
+    if (!options_.ignore_errors) {
+      FailIf(write_result < 0, "error writing CAN");
+    }
   }
 
   virtual ConsumeCount CHILD_ConsumeData(
@@ -1009,6 +1013,13 @@ class SocketcanFactory : public TransportFactory {
         }
       }
     }
+    {
+      auto it = std::find(args.begin(), args.end(), "--socketcan-ignore-errors");
+      if (it != args.end()) {
+        options.ignore_errors = true;
+        args.erase(it);
+      }
+    }
 
     auto result = std::make_shared<Socketcan>(options);
     return TransportArgPair(result, args);
@@ -1017,6 +1028,7 @@ class SocketcanFactory : public TransportFactory {
   virtual std::vector<Argument> cmdline_arguments() override {
     return {
       { "--socketcan-iface", 1, "socketcan iface name" },
+      { "--socketcan-ignore-errors", 0, "ignore errors sending socketcan frames" },
       { "--can-disable-brs", 0, "do not set BRS" },
     };
   }
@@ -1024,6 +1036,7 @@ class SocketcanFactory : public TransportFactory {
   virtual bool is_args_set(const std::vector<std::string>& args) override {
     for (const auto& arg : args) {
       if (arg == "--socketcan-iface") { return true; }
+      if (arg == "--socketcan-ignore-errors") { return true; }
     }
     return false;
   }

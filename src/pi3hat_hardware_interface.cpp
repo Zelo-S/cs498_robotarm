@@ -155,6 +155,12 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_configure(const r
     auto result = pi3hat_->Cycle(pi3hat_input_);
     std::this_thread::sleep_for(sleep_time);
 
+    if(result.error || result.rx_can_size <= 0)
+    {
+        RCLCPP_ERROR(*logger_, "Pi3Hat::Cycle() failed on \"on_configure()!\"");
+        return hardware_interface::CallbackReturn::ERROR;
+    }
+
     /* Get all rx_frames ids (be sure there are no duplicates) */
 
     std::vector<uint32_t> rx_ids;
@@ -163,6 +169,13 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_configure(const r
     {
         controllers_make_queries();
         result = pi3hat_->Cycle(pi3hat_input_);
+
+        if(result.error || result.rx_can_size <= 0)
+        {
+            RCLCPP_ERROR(*logger_, "Pi3Hat::Cycle() failed on \"on_configure()!\"");
+            return hardware_interface::CallbackReturn::ERROR;
+        }
+
         std::this_thread::sleep_for(sleep_time);
         for(int i = 0; i < joint_controller_number_; ++i)
         {
@@ -204,7 +217,14 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_activate(const rc
     joint_to_controller_transform();
 
     controllers_make_commands();
-    pi3hat_->Cycle(pi3hat_input_);
+    const auto result = pi3hat_->Cycle(pi3hat_input_);
+
+    if(result.error || result.rx_can_size <= 0)
+    {
+        RCLCPP_ERROR(*logger_, "Pi3Hat::Cycle() failed on \"on_active()!\"");
+        return hardware_interface::CallbackReturn::ERROR;
+    }
+
     std::this_thread::sleep_for(sleep_time);
     controllers_get_states();
 
@@ -230,7 +250,14 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_deactivate(const 
     joint_to_controller_transform();
 
     controllers_make_commands();
-    pi3hat_->Cycle(pi3hat_input_);
+    const auto result = pi3hat_->Cycle(pi3hat_input_);
+
+    if(result.error || result.rx_can_size <= 0)
+    {
+        RCLCPP_ERROR(*logger_, "Pi3Hat::Cycle() failed on \"on_deactivate()!\"");
+        return hardware_interface::CallbackReturn::ERROR;
+    }
+
     std::this_thread::sleep_for(sleep_time);
     controllers_get_states();
 
@@ -248,7 +275,14 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_cleanup(const rcl
     using namespace std::literals::chrono_literals;
     const auto sleep_time = 10ms;
     controllers_init();
-    pi3hat_->Cycle(pi3hat_input_);
+    const auto result  = pi3hat_->Cycle(pi3hat_input_);
+
+    if(result.error || result.rx_can_size <= 0)
+    {
+        RCLCPP_ERROR(*logger_, "Pi3Hat::Cycle() failed on \"on_cleanup()!\"");
+        return hardware_interface::CallbackReturn::ERROR;
+    }
+
     std::this_thread::sleep_for(sleep_time);
 
     return hardware_interface::CallbackReturn::SUCCESS;
@@ -390,9 +424,9 @@ hardware_interface::return_type Pi3HatHardwareInterface::write(const rclcpp::Tim
     
     mjbots::pi3hat::Pi3Hat::Output result = pi3hat_->Cycle(pi3hat_input_);
 
-    if (result.error)
+    if(result.error)
     {
-        RCLCPP_ERROR(*logger_, "Pi3Hat::Cycle() failed!");
+        RCLCPP_ERROR(*logger_, "Pi3Hat::Cycle() failed on \"write()\"!");
         return hardware_interface::return_type::ERROR;
     }
 

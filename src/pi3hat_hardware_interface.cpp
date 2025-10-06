@@ -601,13 +601,13 @@ void Pi3HatHardwareInterface::create_transmission_interface(const hardware_inter
     if(transmission_info.joints.size() != joint_for_transmission)
     {
         RCLCPP_FATAL(*logger_, "Invalid number of joints in %s!", type.c_str());
-        throw transmission_interface::TransmissionInterfaceException("Invalid number of joints in SimpleTransmission!"); // this should not happen!
+        throw transmission_interface::TransmissionInterfaceException("Invalid number of joints in " + type + "!"); // this should not happen!
     }
 
     if(transmission_info.actuators.size() != joint_for_transmission)
     {
         RCLCPP_FATAL(*logger_, "Invalid number of actuators in %s!", type.c_str());
-        throw transmission_interface::TransmissionInterfaceException("Invalid number of actuators in SimpleTransmission!"); // this should not happen!
+        throw transmission_interface::TransmissionInterfaceException("Invalid number of actuators in " + type + "!"); // this should not happen!
     }
 
     std::vector<transmission_interface::JointHandle> joint_handles;

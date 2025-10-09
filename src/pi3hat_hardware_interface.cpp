@@ -163,6 +163,12 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_configure(const r
 
     /* Get all rx_frames ids (be sure there are no duplicates) */
 
+    RCLCPP_INFO(*logger_, "Starting configure loop on \"on_configure()!\"");
+
+    const auto configure_start_time = std::chrono::steady_clock::now();
+
+    const auto max_configure_time = 10s;
+
     std::vector<uint32_t> rx_ids;
     rx_ids.resize(joint_controller_number_);
     do
@@ -180,6 +186,12 @@ hardware_interface::CallbackReturn Pi3HatHardwareInterface::on_configure(const r
         for(int i = 0; i < joint_controller_number_; ++i)
         {
             rx_ids[i] = rx_can_frames_[i].id;
+        }
+
+        if((std::chrono::steady_clock::now() - configure_start_time) > max_configure_time)
+        {
+            RCLCPP_ERROR(*logger_, "Configuration loop failed on timeout on \"on_configure()!\"");
+            return hardware_interface::CallbackReturn::ERROR;
         }
     } 
     while(std::adjacent_find(rx_ids.begin(), rx_ids.end()) != rx_ids.end());

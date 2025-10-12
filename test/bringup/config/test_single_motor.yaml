@@ -18,10 +18,10 @@ forward_position_controller:
   ros__parameters:
     type: forward_command_controller/ForwardCommandController
     joints:
-      - actuator_1_joint
+      - actuator_5_joint
     interface_name: position
 
 imu_sensor_broadcaster:
   ros__parameters:
     sensor_name: "imu_sensor"
-    frame_id:  "actuator_1_stator"
+    frame_id:  "actuator_5_stator"

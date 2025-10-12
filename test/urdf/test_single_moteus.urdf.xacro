@@ -4,12 +4,12 @@
     <xacro:property name="PI" value="3.141592"/>
 
     <xacro:property name="rotor_inertia" value="1.0"/>
-    <xacro:property name="motor_position_max" value="${10 * PI}"/>
-    <xacro:property name="motor_position_min" value="${-10 * PI}"/>
+    <xacro:property name="motor_position_max" value="${ PI * 9}"/>
+    <xacro:property name="motor_position_min" value="${-PI * 9}"/>
     <xacro:property name="motor_velocity_max" value="2.0"/>
     <xacro:property name="motor_effort_max" value="0.2"/>
 
-    <xacro:property name="transmission_reduction" value="9.97"/>
+    <xacro:property name="transmission_reduction" value="9.0"/>
     <xacro:property name="transmission_offset" value="0.0"/>
 
     
@@ -18,7 +18,7 @@
 
     <link name="world"/>
 
-    <xacro:single_joint_macro name="actuator_1" parent_name="world" x="0.0" y="0.0" inertia="${rotor_inertia}" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" effort_max="${motor_effort_max}"/>
+    <xacro:single_joint_macro name="actuator_5" parent_name="world" x="0.0" y="0.0" inertia="${rotor_inertia}" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" effort_max="${motor_effort_max}"/>
 
     <!-- Hardware interface for pi3hat -->
     <ros2_control name="pi3hat_hardware_interface" type="system">
@@ -53,12 +53,12 @@
         <!-- Single motor hardware macro -->
         <xacro:include filename="core/single_motor_hardware.urdf.xacro"/>
 
-        <xacro:single_motor_hardware_macro name="actuator_1" type="moteus" can_bus="1" can_id="2" direction="1" offset="0.0" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" torque_max="${motor_effort_max}"/>
+        <xacro:single_motor_hardware_macro name="actuator_5" type="moteus" can_bus="1" can_id="1" direction="1" offset="0.0" pos_max="${motor_position_max}" pos_min="${motor_position_min}" vel_max="${motor_velocity_max}" torque_max="${motor_effort_max}"/>
 
         <!-- Simple transmission macro -->
         <xacro:include filename="core/simple_transmission_macro.urdf.xacro"/>
 
-        <xacro:simple_transmission_macro transmission_name="transmission_1" actuator_name="actuator_1" joint_name="actuator_1_joint" reduction="${transmission_reduction}" offset="${transmission_offset}"/>
+        <xacro:simple_transmission_macro transmission_name="transmission_5" actuator_name="actuator_5" joint_name="actuator_5_joint" reduction="${transmission_reduction}" offset="${transmission_offset}"/>
 
         <sensor name="imu_sensor">
             <state_interface name="orientation.x"/>

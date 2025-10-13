@@ -1,4 +1,4 @@
-# pi3hat_hardware_interface
+# My cs498 project built on top of pi3hat_hardware_interface
 
 ## Introduction
 

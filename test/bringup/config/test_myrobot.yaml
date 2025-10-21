@@ -1,0 +1,23 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    forward_position_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    diagnostic_broadcaster:
+      type: diagnostic_broadcaster/DiagnosticBroadcaster
+
+forward_position_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    joints:
+      - waist_joint
+      - shoulder_joint
+      - elbow_joint
+      - left_differential_joint
+      - right_differential_joint
+    interface_name: position

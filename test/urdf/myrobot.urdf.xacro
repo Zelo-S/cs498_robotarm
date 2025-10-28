@@ -27,7 +27,7 @@
 	<xacro:property name="wrist_angle_offset" value="${-pi/4 - elbow_arm1_angle_offset}"/>
 	<xacro:property name="wrist_diameter" value="${0.04 * multiplier}"/>
 
-	<xacro:property name="end_effector_height" value="${0.04 * multiplier}"/>
+	<xacro:property name="end_effector_rod_len" value="${0.05 * multiplier}"/>
 
 	
 	<material name="black">
@@ -173,9 +173,9 @@
 	<link name="left_differential">
 		<visual>
 			<geometry>
-				<cylinder length="${reduc_9_actuator_height/8}" radius="${wrist_diameter/4}" />
+				<cylinder length="${end_effector_rod_len}" radius="${wrist_diameter/8}" />
 			</geometry>
-			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<origin rpy="0 0 0" xyz="0 0 ${end_effector_rod_len/2}"/>
 			<material name="green"/>
 		</visual>
 		<collision>
@@ -189,7 +189,7 @@
 	<link name="right_differential">
 		<visual>
 			<geometry>
-				<cylinder length="${reduc_9_actuator_height/8}" radius="${wrist_diameter/4}" />
+				<cylinder length="${reduc_9_actuator_height/2}" radius="${wrist_diameter/4}" />
 			</geometry>
 			<origin rpy="0 0 0" xyz="0 0 0"/>
 			<material name="green"/>
@@ -260,21 +260,23 @@
         <limit effort="30" velocity="1.0" lower="0" upper="${2.28}" />
 	</joint>
 
-	<joint name="left_differential_joint" type="revolute">
-		<origin xyz="${elbow_arm2_length} 0 -${arm_height/2}" 
-				rpy="0 0 ${wrist_angle_offset}"/>
-		<axis rpy="0 0 0" xyz="0 0 1"/>
+	<!-- Technically the PITCH of wrist -->
+	<joint name="right_differential_joint" type="revolute">
+		<origin xyz="${elbow_arm2_length} 0 0" 
+				rpy="${-pi} 0 ${wrist_angle_offset}"/>
+		<axis rpy="0 0 0" xyz="0 0 -1"/>
 		<parent link="elbow_arm2"/>
-		<child link="left_differential"/>
+		<child link="right_differential"/>
         <limit effort="30" velocity="1.0" lower="${-2*pi}" upper="${2*pi}"/>
 	</joint>
 
-	<joint name="right_differential_joint" type="revolute">
-		<origin xyz="${elbow_arm2_length} 0 ${arm_height/2}" 
-				rpy="${pi} 0 ${wrist_angle_offset}"/>
+	<!-- Technically the ROLL of wrist -->
+	<joint name="left_differential_joint" type="revolute">
+		<origin xyz="0 0 0" 
+				rpy="${pi/2} 0 0"/>
 		<axis rpy="0 0 0" xyz="0 0 1"/>
-		<parent link="elbow_arm2"/>
-		<child link="right_differential"/>
+		<parent link="right_differential"/>
+		<child link="left_differential"/>
         <limit effort="30" velocity="1.0" lower="${-2*pi}" upper="${2*pi}"/>
 	</joint>
 	
@@ -454,11 +456,11 @@
 			<actuator name="right_differential_actuator" role="actuator2"/>
 
 			<joint name="left_differential_joint" role="joint1">
-				<mechanical_reduction>${wrist_reduction_ratio}</mechanical_reduction>
+				<mechanical_reduction>${wrist_reduction_ratio / 2}</mechanical_reduction>
 				<offset>0.0</offset>
 			</joint>
 			<joint name="right_differential_joint" role="joint2">
-				<mechanical_reduction>${wrist_reduction_ratio}</mechanical_reduction>
+				<mechanical_reduction>${wrist_reduction_ratio / 2}</mechanical_reduction>
 				<offset>0.0</offset>
 			</joint>
 		</transmission>

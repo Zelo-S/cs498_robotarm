@@ -52,7 +52,7 @@
 		<color rgba="0.2 0.7 0.4 1"/>
 	</material>
 	
-	<link name="world" />
+	<link name="base_link" />
 
 	<!-- LINKS -->
 	
@@ -201,6 +201,8 @@
 			<origin rpy="0 0 0" xyz="0 0 0"/>
 		</collision>
 	</link>
+	
+	<link name="end_effector" />
 
 	<!-- MODELING JOINTS -->
 	
@@ -232,12 +234,19 @@
 		<child link="elbow_arm2"/>
 	</joint>
 
+	<joint name="end_effector_join" type="fixed">
+		<origin xyz="0 0 ${end_effector_rod_len}" 
+				rpy="0 0 0"/>
+		<parent link="left_differential"/>
+		<child link="end_effector"/>
+	</joint>
+
 	<!-- MOVING JOINTS -->
 	
 	<joint name="waist_joint" type="revolute">
 		<origin xyz="0 0 ${reduc_9_actuator_height}"/>
 		<axis rpy="0 0 0" xyz="0 0 1"/>
-		<parent link="world"/>
+		<parent link="base_link"/>
 		<child link="waist"/>
         <limit effort="30" velocity="1.0" lower="-${pi}" upper="${pi}" />
 	</joint>
@@ -262,7 +271,7 @@
 
 	<!-- Technically the PITCH of wrist -->
 	<joint name="right_differential_joint" type="revolute">
-		<origin xyz="${elbow_arm2_length} 0 0" 
+		<origin xyz="${elbow_arm2_length} 0 -${elbow_arm_width/2}" 
 				rpy="${-pi} 0 ${wrist_angle_offset}"/>
 		<axis rpy="0 0 0" xyz="0 0 -1"/>
 		<parent link="elbow_arm2"/>

@@ -5,7 +5,7 @@ from math import cos, sin, radians
 # We assume 5 revolute joints, and the transformation T_r2_ee is fixed.
 # Assign initial dummy values (e.g., all 0 degrees) for demonstration.
 theta_1 = radians(0)  # Joint 1: Waist rotation
-theta_2 = radians(0) # Joint 2: Shoulder pitch
+theta_2 = radians(-90) # Joint 2: Shoulder pitch
 theta_3 = radians(0)  # Joint 3: Elbow pitch
 theta_4 = radians(0)  # Joint 4: Wrist roll
 theta_5 = radians(0) # Joint 5: Wrist pitch
@@ -58,7 +58,7 @@ T_e_r1_fixed = np.array([
 T_r1_r2_fixed = np.array([
     [1, 0, 0, 0],
     [0, 0, -1, 0],
-    [0, -1, 0, 0],
+    [0, 1, 0, 0],
     [0, 0, 0, 1]
 ])
 
@@ -91,7 +91,7 @@ for i in range(5):
     
     # 3. The transformation for the current link is:
     # T_i-1_to_i = (Variable Rotation) @ (Fixed Link Geometry)
-    T_i_to_iplus1 = T_variable_joint @ T_link_fixed
+    T_i_to_iplus1 =  T_link_fixed @ T_variable_joint
     
     # 4. Multiply with the running chain transformation
     T_chain = T_chain @ T_i_to_iplus1

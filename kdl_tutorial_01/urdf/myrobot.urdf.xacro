@@ -1,0 +1,490 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="myrobot">
+
+	<xacro:property name="multiplier" value="${1}"/>
+
+	<xacro:property name="reduc_9_actuator_diameter" value="${0.077 * multiplier}"/>
+	<xacro:property name="reduc_9_actuator_height" value="${0.058 * multiplier}"/>
+
+	<xacro:property name="waist_reduction_ratio" value="9"/>
+	<xacro:property name="waist_arm_height" value="${0.01 * multiplier}"/>
+
+	<xacro:property name="shoulder_reduction_ratio" value="9"/>
+	<xacro:property name="shoulder_arm_angle_offset" value="${-0.5*pi - 0.52/4.5*pi}"/>
+	<xacro:property name="shoulder_arm_length" value="${0.1385 * multiplier}"/>
+	<xacro:property name="shoulder_arm_width" value="${0.047 * multiplier}"/>
+
+	<xacro:property name="arm_height" value="${0.03 * multiplier}"/>
+
+	<xacro:property name="elbow_reduction_ratio" value="5"/>
+	<xacro:property name="elbow_arm1_angle_offset" value="${-pi/6 + 0.15/2.5*pi}"/>
+	<xacro:property name="elbow_arm2_angle_offset" value="-${pi/4}"/>
+	<xacro:property name="elbow_arm1_length" value="${0.065 * multiplier}"/>
+	<xacro:property name="elbow_arm2_length" value="${0.110 * multiplier}"/>
+	<xacro:property name="elbow_arm_width" value="${0.020 * multiplier}"/>
+	
+	<xacro:property name="wrist_reduction_ratio" value="6"/>
+	<xacro:property name="wrist_angle_offset" value="${-pi/4 - elbow_arm1_angle_offset}"/>
+	<xacro:property name="wrist_diameter" value="${0.04 * multiplier}"/>
+
+	<xacro:property name="end_effector_rod_len" value="${0.05 * multiplier}"/>
+
+	
+	<material name="black">
+		<color rgba="0 0 0 1"/>
+	</material>
+	<material name="white">
+		<color rgba="1 1 1 1"/>
+	</material>
+	<material name="orange">
+		<color rgba="1 0.6 0 1"/>
+	</material>
+	<material name="red">
+		<color rgba="1 0 0 1"/>
+	</material>
+	<material name="green">
+		<color rgba="0 1 0 1"/>
+	</material>
+	<material name="blue">
+		<color rgba="0 0 1 1"/>
+	</material>
+	<material name="thing">
+		<color rgba="0.2 0.7 0.4 1"/>
+	</material>
+	
+	<link name="base_link" />
+
+	<!-- LINKS -->
+	
+	<link name="waist">
+		<visual>
+			<geometry>
+				<cylinder length="${reduc_9_actuator_height}" radius="${reduc_9_actuator_diameter/2}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 -${reduc_9_actuator_height/2}"/>
+			<material name="orange"/>
+		</visual>
+		<collision>
+			<geometry>
+				<cylinder length="${reduc_9_actuator_height}" radius="${reduc_9_actuator_diameter/2}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 -${reduc_9_actuator_height/2}"/>
+		</collision>
+	</link>
+	
+
+	<link name="waist_arm">
+		<visual>
+			<geometry>
+				<cylinder radius="${reduc_9_actuator_diameter/2}" length="${waist_arm_height}"/>
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 ${waist_arm_height/2}"/>
+			<material name="black"/>
+		</visual>
+		<collision>
+			<geometry>
+				<box size="${reduc_9_actuator_diameter} ${reduc_9_actuator_diameter} ${waist_arm_height}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 ${waist_arm_height/2}"/>
+		</collision>
+	</link>
+
+	<link name="shoulder">
+		<visual>
+			<geometry>
+				<cylinder length="${reduc_9_actuator_height}" radius="${reduc_9_actuator_diameter/2}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 -${reduc_9_actuator_height/2}"/>
+			<material name="blue"/>
+		</visual>
+		<collision>
+			<geometry>
+				<cylinder length="${reduc_9_actuator_height}" radius="${reduc_9_actuator_diameter/2}" />
+			</geometry>                                                                                                  
+			<origin rpy="0 0 0" xyz="0 0 -${reduc_9_actuator_height/2}"/>
+		</collision>
+	</link> 
+
+	<link name="shoulder_arm">
+		<visual>
+			<geometry>
+				<box size="${shoulder_arm_length} ${shoulder_arm_width} ${arm_height}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="${shoulder_arm_length/2} 0 ${arm_height/2}"/>
+			<material name="blue"/>
+		</visual>
+		<collision>
+			<geometry>
+				<box size="${shoulder_arm_length} ${reduc_9_actuator_diameter} 0.03" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="${shoulder_arm_length/2} 0 ${arm_height/2}"/>
+		</collision>
+	</link>
+	
+	<link name="elbow">
+		<visual>
+			<geometry>
+				<cylinder length="${reduc_9_actuator_height}" radius="${reduc_9_actuator_diameter/2}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 ${-reduc_9_actuator_height/2}"/>
+			<material name="white"/>
+		</visual>
+		<collision>
+			<geometry>
+				<cylinder length="${reduc_9_actuator_height}" radius="${reduc_9_actuator_diameter/2}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 -${reduc_9_actuator_height/2}"/>
+			<material name="white"/>
+		</collision>
+	</link>
+
+	<link name="elbow_arm1">
+		<visual>
+			<geometry>
+				<box size="${elbow_arm1_length} ${elbow_arm_width} ${arm_height}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="${elbow_arm1_length/2} 0 0"/>
+			<material name="red"/>
+		</visual>
+		<collision>
+			<geometry>
+				<box size="${elbow_arm1_length} ${reduc_9_actuator_diameter} ${arm_height}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="${elbow_arm1_length/2} 0 ${arm_height/2}"/>
+		</collision>
+	</link>
+
+	<link name="elbow_arm2">
+		<visual>
+			<geometry>
+				<box size="${elbow_arm2_length} ${elbow_arm_width} ${arm_height}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="${elbow_arm2_length/2} 0 0"/>
+			<material name="red"/>
+		</visual>
+		<collision>
+			<geometry>
+				<box size="${elbow_arm2_length} ${reduc_9_actuator_diameter} ${arm_height}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="${elbow_arm2_length/2} 0 ${arm_height/2}"/>
+		</collision>
+	</link>
+
+	<link name="left_differential">
+		<visual>
+			<geometry>
+				<cylinder length="${end_effector_rod_len}" radius="${wrist_diameter/8}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 ${end_effector_rod_len/2}"/>
+			<material name="green"/>
+		</visual>
+		<collision>
+			<geometry>
+				<cylinder length="${reduc_9_actuator_height/8}" radius="${wrist_diameter/4}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+		</collision>
+	</link>
+
+	<link name="right_differential">
+		<visual>
+			<geometry>
+				<cylinder length="${reduc_9_actuator_height/2}" radius="${wrist_diameter/4}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<material name="green"/>
+		</visual>
+		<collision>
+			<geometry>
+				<cylinder length="${reduc_9_actuator_height/8}" radius="${wrist_diameter/4}" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+		</collision>
+	</link>
+	
+	<link name="end_effector" />
+
+	<!-- MODELING JOINTS -->
+	
+	<joint name="waist_arm_join" type="fixed">
+		<origin xyz="0 0 0" 
+				rpy="0 0 0"/>
+		<parent link="waist"/>
+		<child link="waist_arm"/>
+	</joint>
+	
+	<joint name="shoulder_arm_join" type="fixed">
+		<origin xyz="0 0 0" 
+				rpy="0 0 ${shoulder_arm_angle_offset}"/>
+		<parent link="shoulder"/>
+		<child link="shoulder_arm"/>
+	</joint>
+	
+	<joint name="elbow_arm_join" type="fixed">
+		<origin xyz="0 0 ${arm_height/2}" 
+				rpy="0 0 ${elbow_arm1_angle_offset}"/>
+		<parent link="elbow"/>
+		<child link="elbow_arm1"/>
+	</joint>
+	
+	<joint name="elbow_arm2_join" type="fixed">
+		<origin xyz="${elbow_arm1_length} 0 0" 
+				rpy="0 0 ${elbow_arm2_angle_offset}"/>
+		<parent link="elbow_arm1"/>
+		<child link="elbow_arm2"/>
+	</joint>
+
+	<joint name="end_effector_join" type="fixed">
+		<origin xyz="0 0 ${end_effector_rod_len}" 
+				rpy="0 0 0"/>
+		<parent link="left_differential"/>
+		<child link="end_effector"/>
+	</joint>
+
+	<!-- MOVING JOINTS -->
+	
+	<joint name="waist_joint" type="revolute">
+		<origin xyz="0 0 ${reduc_9_actuator_height}"/>
+		<axis rpy="0 0 0" xyz="0 0 1"/>
+		<parent link="base_link"/>
+		<child link="waist"/>
+        <limit effort="30" velocity="1.0" lower="-${pi}" upper="${pi}" />
+	</joint>
+
+	<joint name="shoulder_joint" type="revolute">
+		<origin xyz="0 0 ${waist_arm_height + reduc_9_actuator_diameter/2}"
+				rpy="-${pi/2} 0 0"/>
+		<axis rpy="0 0 0" xyz="0 0 1"/>
+		<parent link="waist"/>
+		<child link="shoulder"/>
+        <limit effort="30" velocity="1.0" lower="-${2.57}" upper="${3.71}" />
+	</joint>
+	
+	<joint name="elbow_joint" type="revolute">
+		<origin xyz="${cos(shoulder_arm_angle_offset) * shoulder_arm_length} ${sin(shoulder_arm_angle_offset) * shoulder_arm_length} 0" 
+				rpy="${pi} 0 0"/>
+		<axis rpy="0 0 0" xyz="0 0 1"/>
+		<parent link="shoulder"/>
+		<child link="elbow"/>
+        <limit effort="30" velocity="1.0" lower="0" upper="${2.28}" />
+	</joint>
+
+	<!-- Technically the PITCH of wrist -->
+	<joint name="right_differential_joint" type="revolute">
+		<origin xyz="${elbow_arm2_length} 0 -${reduc_9_actuator_height/4}" 
+				rpy="${-pi} 0 ${wrist_angle_offset}"/>
+		<axis rpy="0 0 0" xyz="0 0 -1"/>
+		<parent link="elbow_arm2"/>
+		<child link="right_differential"/>
+        <limit effort="30" velocity="1.0" lower="${-2*pi}" upper="${2*pi}"/>
+	</joint>
+
+	<!-- Technically the ROLL of wrist -->
+	<joint name="left_differential_joint" type="revolute">
+		<origin xyz="0 0 0" 
+				rpy="${pi/2} 0 0"/>
+		<axis rpy="0 0 0" xyz="0 0 1"/>
+		<parent link="right_differential"/>
+		<child link="left_differential"/>
+        <limit effort="30" velocity="1.0" lower="${-2*pi}" upper="${2*pi}"/>
+	</joint>
+	
+	<!-- ROS2 CONTROL -->
+	<ros2_control name="pi3hat_hardware_interface" type="system">
+		<hardware>
+			<plugin>pi3hat_hardware_interface/Pi3HatHardwareInterface</plugin>
+				<param name="imu_mounting_deg.yaw">0</param>
+				<param name="imu_mounting_deg.pitch">0</param>
+				<param name="imu_mounting_deg.roll">0</param>
+				<param name="imu_sampling_rate">1000</param>
+
+				<param name="can_1_fdcan_frame">true</param>
+				<param name="can_1_automatic_retransmission">true</param>
+				<param name="can_1_bitrate_switch">true</param>
+
+				<param name="can_2_fdcan_frame">true</param>
+				<param name="can_2_automatic_retransmission">true</param>
+				<param name="can_2_bitrate_switch">true</param>
+
+				<param name="can_3_fdcan_frame">true</param>
+				<param name="can_3_automatic_retransmission">true</param>
+				<param name="can_3_bitrate_switch">true</param>
+
+				<param name="can_4_fdcan_frame">true</param>
+				<param name="can_4_automatic_retransmission">true</param>
+				<param name="can_4_bitrate_switch">true</param>
+
+				<param name="can_5_fdcan_frame">true</param>
+				<param name="can_5_automatic_retransmission">true</param>
+				<param name="can_5_bitrate_switch">true</param>
+		</hardware>
+
+		<joint name="waist_joint">
+			<param name="controller_type">moteus</param>
+			<param name="controller_can_bus">1</param>
+			<param name="controller_can_id">1</param>
+
+			<param name="motor_direction">1</param>
+			<param name="motor_position_offset">0.0</param>
+			<param name="motor_position_max">${pi *  waist_reduction_ratio}</param>
+			<param name="motor_position_min">${-pi * waist_reduction_ratio}</param>
+			<param name="motor_velocity_max">5.0</param>
+			<param name="motor_torque_max">1.0</param>
+
+			<command_interface name="position"/>
+			<command_interface name="velocity"/>
+			<command_interface name="effort"/>
+
+			<state_interface name = "position"/>
+			<state_interface name = "velocity"/>
+			<state_interface name = "effort"/>
+			<state_interface name = "temperature"/>
+		</joint>
+		
+		<transmission name="waist_joint_transmission">
+            <plugin>transmission_interface/SimpleTransmission</plugin>
+            <actuator name="waist_actuator" role="actuator1"/>
+            <joint name="waist_joint" role="joint1">
+                <mechanical_reduction>${waist_reduction_ratio}</mechanical_reduction>
+                <offset>0</offset>
+            </joint>
+		</transmission>
+
+		<joint name="shoulder_joint">
+			<param name="controller_type">moteus</param>
+			<param name="controller_can_bus">2</param>
+			<param name="controller_can_id">2</param>
+
+			<param name="motor_direction">1</param>
+			<param name="motor_position_offset">0.0</param>
+			<param name="motor_position_max">${2.42 * shoulder_reduction_ratio}</param>
+			<param name="motor_position_min">${-1.7 * shoulder_reduction_ratio}</param>
+			<param name="motor_velocity_max">5.0</param>
+			<param name="motor_torque_max">1.0</param>
+
+			<command_interface name="position"/>
+			<command_interface name="velocity"/>
+			<command_interface name="effort"/>
+
+			<state_interface name = "position"/>
+			<state_interface name = "velocity"/>
+			<state_interface name = "effort"/>
+			<state_interface name = "temperature"/>
+		</joint>
+
+		<transmission name="shoulder_joint_transmission">
+            <plugin>transmission_interface/SimpleTransmission</plugin>
+            <actuator name="shoulder_actuator" role="actuator1"/>
+            <joint name="shoulder_joint" role="joint1">
+                <mechanical_reduction>${shoulder_reduction_ratio}</mechanical_reduction>
+                <offset>0</offset>
+            </joint>
+		</transmission>
+		
+		<joint name="elbow_joint">
+			<param name="controller_type">moteus</param>
+			<param name="controller_can_bus">3</param>
+			<param name="controller_can_id">3</param>
+
+			<param name="motor_direction">1</param>
+			<param name="motor_position_offset">0.0</param>
+			<param name="motor_position_max">${2.28 * elbow_reduction_ratio}</param>
+			<param name="motor_position_min">${0.00 * elbow_reduction_ratio}</param>
+			<param name="motor_velocity_max">5.0</param>
+			<param name="motor_torque_max">1.0</param>
+
+			<command_interface name="position"/>
+			<command_interface name="velocity"/>
+			<command_interface name="effort"/>
+
+			<state_interface name = "position"/>
+			<state_interface name = "velocity"/>
+			<state_interface name = "effort"/>
+			<state_interface name = "temperature"/>
+		</joint>
+
+		<transmission name="elbow_joint_transmission">
+            <plugin>transmission_interface/SimpleTransmission</plugin>
+            <actuator name="elbow_actuator" role="actuator1"/>
+            <joint name="elbow_joint" role="joint1">
+                <mechanical_reduction>${elbow_reduction_ratio}</mechanical_reduction>
+                <offset>0</offset>
+            </joint>
+		</transmission>
+		
+		<!-- WRIST TRANSMISSION WHICH IS DIFFERENTIAL -->
+		<joint name="left_differential_joint">
+			<param name="controller_type">moteus</param>
+			<param name="controller_can_bus">4</param>
+			<param name="controller_can_id">4</param>
+
+			<param name="motor_direction">1</param>
+			<param name="motor_position_offset">0.0</param>
+			<param name="motor_position_max">${2*pi * wrist_reduction_ratio}</param>
+			<param name="motor_position_min">${-2*pi * wrist_reduction_ratio}</param>
+			<param name="motor_velocity_max">10.0</param>
+			<param name="motor_torque_max">5.0</param>
+
+			<command_interface name="position"/>
+			<command_interface name="velocity"/>
+			<command_interface name="effort"/>
+
+			<state_interface name="position"/>
+			<state_interface name="velocity"/>
+			<state_interface name="effort"/>
+			<state_interface name="temperature"/>
+		</joint>
+
+		<joint name="right_differential_joint">
+			<param name="controller_type">moteus</param>
+			<param name="controller_can_bus">5</param>
+			<param name="controller_can_id">5</param>
+			
+			<param name="motor_direction">-1</param>
+			<param name="motor_position_offset">0.0</param>
+			<param name="motor_position_max">${2*pi * wrist_reduction_ratio}</param>
+			<param name="motor_position_min">${-2*pi * wrist_reduction_ratio}</param>
+			<param name="motor_velocity_max">10.0</param>
+			<param name="motor_torque_max">5.0</param>
+
+			<command_interface name="position"/>
+			<command_interface name="velocity"/>
+			<command_interface name="effort"/>
+
+			<state_interface name="position"/>
+			<state_interface name="velocity"/>
+			<state_interface name="effort"/>
+			<state_interface name="temperature"/>
+		</joint>
+
+		<!-- Differential Transmission -->
+		<transmission name="differential_drive_transmission">
+			<plugin>transmission_interface/DifferentialTransmission</plugin>
+			
+			<actuator name="left_differential_actuator" role="actuator1"/>
+			<actuator name="right_differential_actuator" role="actuator2"/>
+
+			<joint name="left_differential_joint" role="joint1">
+				<mechanical_reduction>${wrist_reduction_ratio / 2}</mechanical_reduction>
+				<offset>0.0</offset>
+			</joint>
+			<joint name="right_differential_joint" role="joint2">
+				<mechanical_reduction>${wrist_reduction_ratio / 2}</mechanical_reduction>
+				<offset>0.0</offset>
+			</joint>
+		</transmission>
+		<sensor name="imu_sensor">
+			<state_interface name = "orientation.x"/>
+			<state_interface name = "orientation.y"/>
+			<state_interface name = "orientation.z"/>
+			<state_interface name = "orientation.w"/>
+			<state_interface name = "angular_velocity.x"/>
+			<state_interface name = "angular_velocity.y"/>
+			<state_interface name = "angular_velocity.z"/>
+			<state_interface name = "linear_acceleration.x"/>
+			<state_interface name = "linear_acceleration.y"/>
+			<state_interface name = "linear_acceleration.z"/>
+		</sensor>
+	</ros2_control>
+
+</robot>

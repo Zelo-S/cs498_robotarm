@@ -11,7 +11,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     xacro_path = LaunchConfiguration('xacro_path')
     default_xacro_path = os.path.join(
-        get_package_share_directory('kdl_tutorial_01'), 'urdf/leg.urdf.xacro')
+        get_package_share_directory('kdl_tutorial_01'), 'urdf/myrobot.urdf.xacro')
 
     # Convert xacro to urdf
     urdf = ParameterValue(Command(['xacro', ' ', xacro_path]), value_type=str)

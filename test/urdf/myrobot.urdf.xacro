@@ -271,7 +271,7 @@
 
 	<!-- Technically the PITCH of wrist -->
 	<joint name="right_differential_joint" type="revolute">
-		<origin xyz="${elbow_arm2_length} 0 -${elbow_arm_width/2}" 
+		<origin xyz="${elbow_arm2_length} 0 -${reduc_9_actuator_height/4}" 
 				rpy="${-pi} 0 ${wrist_angle_offset}"/>
 		<axis rpy="0 0 0" xyz="0 0 -1"/>
 		<parent link="elbow_arm2"/>

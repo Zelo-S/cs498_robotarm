@@ -18,7 +18,7 @@
 #include "kdl/jntarray.hpp"
 #include "kdl/chainiksolverpos_lma.hpp"
 #include "kdl_parser/kdl_parser.hpp"
-#include "kdl/chainfksolverpos_recursive.hpp" // For Forward Kinematics
+#include "kdl/chainfksolverpos_recursive.hpp"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -30,13 +30,12 @@ using namespace std::chrono_literals;
 class MyRobotIK : public rclcpp::Node{
 public:
 	MyRobotIK() : Node("leg_inverse_kinematics_example"){
-        // put joint offsets if any needed
         joint_offset_ = {0, 0, 0, 0, 0};
         
         center_x_ = 0.160;
         center_y_ = 0.000;
         center_z_ = 0.125;
-        step_size_ = 0.02; // 10mm steps 
+        step_size_ = 0.02; // 20mm steps 
 		step_size_diag_ = 0.0141421356;
         step_index_ = 0;
 		
@@ -63,40 +62,33 @@ private:
 	void robotDescriptionCallback(const std_msgs::msg::String& msg){
         RCLCPP_INFO(this->get_logger(), "Received robot_description. Building KDL model...");
 
-		// Construct KDL tree from URDF
 		const std::string urdf = msg.data;
 		if (!kdl_parser::treeFromString(urdf, tree_)) {
             RCLCPP_ERROR(this->get_logger(), "Failed to parse URDF into KDL tree.");
             return;
         }
 
-		// Get kinematic chain
 		if (!tree_.getChain("base_link", "end_effector", chain_)) {
              RCLCPP_ERROR(this->get_logger(), "Failed to get kinematic chain from 'base_link' to 'end_effector'.");
             return;
         }
 		RCLCPP_INFO(this->get_logger(), "KDL Chain built with %d joints.", chain_.getNrOfJoints());
 
-		// Create IK solver
 		solver_ = std::make_unique<KDL::ChainIkSolverPos_LMA>(chain_);
 
-		// Start the step-by-step trajectory timer
-		startSquareSequence();
+		runActionSpaceSequence();
         
-        // Unsubscribe after receiving the URDF once
         subscription_.reset();
 	}
 
-    void startSquareSequence() {
-        // Run at 0.5Hz (2.0 second interval) for a clear, discrete step movement
+    void runActionSpaceSequence() {
 		double total_move_time = 2.0; 
 		double frequency = (double)total_sub_steps_ / total_move_time;
         auto period = std::chrono::duration<double>(1.0 / frequency);
         
-        RCLCPP_INFO(this->get_logger(), "Starting 16-step square pattern at %.2f Hz (%.1f seconds per step).", frequency, 1.0 / frequency);
-        RCLCPP_INFO(this->get_logger(), "Center point: (%.4f, %.4f, %.4f). Step size: %.4f m.", center_x_, center_y_, center_z_, step_size_);
+        RCLCPP_INFO(this->get_logger(), "16-step pattern at %.2f Hz (%.1f seconds per step).", frequency, 1.0 / frequency);
+        RCLCPP_INFO(this->get_logger(), "Center point loc: (%.4f, %.4f, %.4f). Step size: %.4f m.", center_x_, center_y_, center_z_, step_size_);
 
-        // Create the timer
         timer_ = this->create_wall_timer(
             period,
             std::bind(&MyRobotIK::trajectoryTimerCallback, this)
@@ -108,37 +100,33 @@ private:
 			return;
 		}
 
-		// --- STEP 1: GENERATE NEW TRAJECTORY (Only once per 16-step macro cycle) ---
 		if (sub_step_index_ == 0) {
-			// Calculate the next target point (Macro-step 0 to 7)
 			double x_pos = center_x_;
 			double y_pos = center_y_;
 			double z_pos = center_z_;
 			
-			// ... (existing switch statement for x_pos, y_pos, z_pos based on step_index_)
 			switch (step_index_) {
 				case 0: x_pos = center_x_ + step_size_; break;
-				case 1: break; // Return to Center
+				case 1: break;
 				case 2: x_pos = center_x_ + step_size_diag_; y_pos = center_y_ + step_size_diag_; break;
-				case 3: break; // Return to Center
+				case 3: break;
 				case 4: y_pos = center_y_ + step_size_; break;
-				case 5: break; // Return to Center
+				case 5: break;
 				case 6: x_pos = center_x_ - step_size_diag_; y_pos = center_y_ + step_size_diag_; break;
-				case 7: break; // Return to Center
+				case 7: break;
 				case 8: x_pos = center_x_ - step_size_; break;
-				case 9: break; // Return to Center
+				case 9: break;
 				case 10: x_pos = center_x_ - step_size_diag_; y_pos = center_y_ - step_size_diag_; break;
-				case 11: break; // Return to Center
+				case 11: break;
 				case 12: y_pos = center_y_ - step_size_; break;
-				case 13: break; // Return to Center
+				case 13: break;
 				case 14: x_pos = center_x_ + step_size_diag_; y_pos = center_y_ - step_size_diag_; break;
-				case 15: break; // Return to Center
+				case 15: break;
 			}
 			
 			KDL::JntArray q_start(chain_.getNrOfJoints());
 			KDL::JntArray q_target(chain_.getNrOfJoints());
 
-			// Get joint angles for current (q_start) and new target (q_target)
 			int ret_start = getJointAngles(curr_x_, curr_y_, curr_z_, q_start);
 			int ret_target = getJointAngles(x_pos, y_pos, z_pos, q_target);
 
@@ -147,42 +135,31 @@ private:
 				RCLCPP_INFO(this->get_logger(), "Starting new trajectory from (%.4f, %.4f, %.4f) to (%.4f, %.4f, %.4f)",
 							curr_x_, curr_y_, curr_z_, x_pos, y_pos, z_pos);
 
-				// Interpolate the joint angles (q_start to q_target)
 				interpolateJoints(q_start, q_target, total_sub_steps_, current_trajectory_);
 
-				// Update the stored current position for the next macro-step's IK start point
 				curr_x_ = x_pos;
 				curr_y_ = y_pos;
 				curr_z_ = z_pos;
 			} else {
 				RCLCPP_WARN(this->get_logger(), "IK failed for start (%d) or target (%d). Skipping macro step.", ret_start, ret_target);
-				// Increment and wrap the macro step index immediately to retry next cycle
 				step_index_ = (step_index_ + 1) % 16;
 				return;
 			}
 		}
 
-		// --- STEP 2: PUBLISH INTERPOLATED SUB-STEP (Every timer tick) ---
-
-		// Ensure trajectory is not empty (shouldn't be if index 0 check passed)
 		if (!current_trajectory_.empty()) {
 			const KDL::JntArray& q_step = current_trajectory_[sub_step_index_];
 			publishJointCommand(q_step);
 		}
 
-		// --- STEP 3: MANAGE INDICES ---
-
-		sub_step_index_++; // Move to the next sub-step
+		sub_step_index_++;
 		
 		if (sub_step_index_ > total_sub_steps_) {
-			// Full trajectory completed (101 points published)
 			sub_step_index_ = 0; 
-			// Move to the next major step in the square
 			step_index_ = (step_index_ + 1) % 16; 
 		}
 	}
 	
-	// Add this method to the private section of MyRobotIK class
 	void interpolateJoints(const KDL::JntArray& q_start, const KDL::JntArray& q_end, int total_steps, std::vector<KDL::JntArray>& trajectory) {
 
 		trajectory.clear();
@@ -204,21 +181,13 @@ private:
 		
 	}
 
-	//! Cartesian x, y, z => joint angles via IK
 	int getJointAngles(const double x, const double y, const double z, KDL::JntArray& q_out){
-		// Prepare IK solver input variables
 		KDL::JntArray q_init(chain_.getNrOfJoints());
-        // Initialize with a known safe position (or the previous q_out if available)
 		for (unsigned int i = 0; i < chain_.getNrOfJoints(); ++i) {
-            // Using 0.0 as a safe starting point for initialization
             q_init(i) = 0.0; 
         }
 		
-		// KDL::Frame represents the desired end-effector pose (position and orientation)
-		// We use an identity rotation (default) and set only the position vector
 		const KDL::Frame p_in(KDL::Vector(x, y, z));
-		
-		// Run IK solver
 		return solver_->CartToJnt(q_init, p_in, q_out);
 	}
 
@@ -231,7 +200,6 @@ private:
 		const double lower_safety = -M_PI; // ~-180 degrees
 		bool limit_exceeded = false;
 		
-		// Checking limits before adding angle to current command
 		for (unsigned int i = 0; i < joint_angles.data.size(); ++i) {
 			double corrected_angle = joint_angles(i) - joint_offset_[i];
 			if (i == 3) {
@@ -239,7 +207,7 @@ private:
 			}
 			if (corrected_angle > upper_safety || corrected_angle < lower_safety) {
 				RCLCPP_ERROR(this->get_logger(), 
-					"🚨 SAFETY TRIP: Joint %u angle %.4f radians exceeds limits (Min: %.2f, Max: %.2f)!", 
+					"!!! Joint %u angle %.4f radians exceeds limits (Min: %.2f, Max: %.2f) !!!", 
 					i, corrected_angle, lower_safety, upper_safety);
 				limit_exceeded = true;
 				break; 
@@ -247,11 +215,10 @@ private:
 			msg->data.push_back(corrected_angle);
 		}
     
-		// Kill program if exceed joint limits
 		if (limit_exceeded) {
 			if (timer_) {
 				timer_->cancel();
-				RCLCPP_FATAL(this->get_logger(), "!!! MOTION TERMINATED: Joint angle safety limit was breached. !!!");
+				RCLCPP_FATAL(this->get_logger(), "!!! Joint angle safety limit was breached. !!!");
 			}
 			return;
 		}
@@ -269,15 +236,15 @@ private:
 
 	rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_;
-    rclcpp::TimerBase::SharedPtr timer_; // Timer for the discrete trajectory
+    rclcpp::TimerBase::SharedPtr timer_; // Timer for the 16-step sequence
 	KDL::Tree tree_;
 	KDL::Chain chain_;
 	std::unique_ptr<KDL::ChainIkSolverPos_LMA> solver_;
     std::vector<double> joint_offset_; 
     
     double center_x_, center_y_, center_z_; // Center point (0.1102, 0, 0.135)
-    double step_size_; // 0.05m
-    double step_size_diag_; // 0.05m
+    double step_size_; // 0.02
+    double step_size_diag_; // 0.014
     int step_index_; // Current position in the 16-step cycle (0-15)
 	
 	double curr_x_, curr_y_, curr_z_;
@@ -425,16 +392,11 @@ private:
 int main(int argc, char* argv[]){
 	rclcpp::init(argc, argv);
     
-    // Create smart pointers for both nodes
 	auto ik_node = std::make_shared<MyRobotIK>();
 	// auto fk_node = std::make_shared<FKSolverNode>();
-
-    // Create an executor to manage both nodes concurrently
     rclcpp::executors::SingleThreadedExecutor executor;
     executor.add_node(ik_node);
     // executor.add_node(fk_node);
-
-    // Spin the executor, which blocks and processes callbacks for both nodes
 	executor.spin();
 
 	rclcpp::shutdown();

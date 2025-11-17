@@ -1,0 +1,67 @@
+    1  vim ~/.bashrc 
+    2  source ~/.bashrc 
+    3  clear
+    4  unzip
+    5  sudo apt isntall unzip
+    6  sudo apt install unzip
+    7  unzip ros2_ws.zip 
+    8  unzip moteus_configing.zip 
+    9  rm ros2_ws.zip moteus_configing.zip 
+   10  clear
+   11  cd ros2_ws/
+   12  sudo shutdown now
+   13  cd ros2_ws/
+   14  clear
+   15  history
+   16  rosdep install --ignore-src --from-paths . -y -r
+   17  sudo rosdep init
+   18  rosdep update
+   19  rosdep install --ignore-src --from-paths . -y -r
+   20  sudo apt install libraspberrypi-bin v4l-utils ros-humble-v4l2-camera
+   21  sudo apt install ros-humble-image-transport-plugins
+   22  groups
+   23  sudo apt install raspi-config
+   24  sudo raspi-config 
+   25  sudo reboot
+   26  vcgencmd get_camera
+   27  tmux
+   28  tmux ls
+   29  cd ros2_ws/
+   30  clear
+   31  colcon build --packages-select pi3hat_hardware_interface
+   32  sudo apt install python3-colcon-common-extensions
+   33  colcon build --packages-select pi3hat_hardware_interface
+   34  sudo ln /usr/lib/aarch64-linux-gnu/libbcm_host.so /usr/lib/libbcm_host.so.0
+   35  colcon build --packages-select pi3hat_hardware_interface
+   36  colcon build --packages-select pi3hat_hardware_interface --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo
+   37  sudo apt install libraspberrypi-dev
+   38  ls /usr/include/bcm_host.h
+   39  colcon build --packages-select pi3hat_hardware_interface
+   40  sudo apt autoclean
+   41  sudo -E ../moteus_configing/zero.sh
+   42  chmod +x ../moteus_configing/zero.sh 
+   43  sudo -E ../moteus_configing/zero.sh
+   44  cd ../moteus_configing/
+   45  ls
+   46  rm -rf moteus-venv/
+   47  python -m venv --system-site-packages moteus-venv
+   48  sudo apt install python-is-python3
+   49  source moteus-venv/bin/activate
+   50  ls
+   51  python -m venv --system-site-packages moteus-venv
+   52  sudo apt install python3.10-venv
+   53  python -m venv --system-site-packages moteus-venv
+   54  source moteus-venv/bin/activate
+   55  pip3 install moteus-pi3hat
+   56  source ~/.bashrc 
+   57  clear
+   58  ls
+   59  sudo -E ./zero.sh 
+   60  cd ..
+   61  clear
+   62  tmux ls
+   63  cd ros2_ws/
+   64  clear
+   65  ros2 topic list
+   66  history
+   67  history >> setup.log

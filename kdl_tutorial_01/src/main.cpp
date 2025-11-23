@@ -21,21 +21,39 @@
 #include "kdl_parser/kdl_parser.hpp"
 #include "kdl/chainfksolverpos_recursive.hpp"
 
+// Headers for image viewing
+#include "sensor_msgs/msg/image.hpp"
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/opencv.hpp>
+
+// Headers for aruco detection
+#include <opencv2/aruco.hpp>
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
 using std::placeholders::_1;
 using namespace std::chrono_literals;
+	
+struct EEPos {
+	double x;
+	double y;
+	double z;
+};
 
 class MyRobotIK : public rclcpp::Node{
 public:
 	MyRobotIK() : Node("leg_inverse_kinematics_example"){
         joint_offset_ = {0, 0, 0, 0, 0};
         
-		curr_x_ = 0.160;
-		curr_y_ = 0.000;
-		curr_z_ = 0.130;
+		ZERO_X_ = 0.160;
+		ZERO_Y_ = 0.000;
+		ZERO_Z_ = 0.130;
+
+		curr_x_ = ZERO_X_;
+		curr_y_ = ZERO_Y_;
+		curr_z_ = ZERO_Z_;
         step_size_ = 0.02; // 20mm steps 
 		step_size_diag_ = 0.0141421356;
         step_index_ = 0;
@@ -53,7 +71,29 @@ public:
             "/forward_position_controller/commands", 
             10
         );
-        RCLCPP_INFO(this->get_logger(), "MyRobotIK Node Initialized with0Joint Command Publisher.");
+
+		camera_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
+			"/image_raw", // The topic you listed
+			1, // QoS history depth
+			std::bind(&MyRobotIK::imageCallback, this, _1)
+		);
+		RCLCPP_INFO(this->get_logger(), "Subscribing to camera topic: /image_raw");
+		
+		// --- Aruco Initialization ---
+		dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
+		parameters_ = cv::aruco::DetectorParameters::create();
+		
+		// !!! REPLACE WITH YOUR ACTUAL CAMERA CALIBRATION DATA !!!
+		camera_matrix_ = (cv::Mat_<double>(3, 3) << 
+			449.55619677,   0.0,         347.40316357, // fx, 0, cx
+			0.0,         452.21172792, 223.13192478, // 0, fy, cy
+			0.0, 0.0, 1.0);
+			
+		dist_coeffs_ = (cv::Mat_<double>(5, 1) << 
+			0.67764151, -2.68262838,  0.01394802, -0.00579161,  3.23228471); // k1, k2, p1, p2, k3 (assuming no distortion)
+		// -------------------------------------------------------------
+
+        RCLCPP_INFO(this->get_logger(), "MyRobotIK Node Initialized with Joint Command Publisher.");
 	}
 
 private:
@@ -92,16 +132,13 @@ private:
             std::bind(&MyRobotIK::trajectoryTimerCallback, this)
         );
 
-        // timer2_ = this->create_wall_timer(
-            // period,
-            // std::bind(&MyRobotIK::trajectoryTimerCallback, this)
-        // );
     }
     
 	void trajectoryTimerCallback() {
 		if (!solver_) {
 			return;
 		}
+
 
 		if (sub_step_index_ == 0) {
 			double x_pos = curr_x_;
@@ -129,12 +166,46 @@ private:
 
 		}
 		
+		EEPos currEEPos = {traj_start_x_, traj_start_y_, traj_start_z_};
+		EEPos targetEEPos = {traj_target_x_, traj_target_y_, traj_target_z_};
+		moveEESmooth(currEEPos, targetEEPos);
+				
+		resetPosition();
+		// TODO: take picture and get state
+		restorePosition();
 
+		sub_step_index_++;
+		if (sub_step_index_ > total_sub_steps_) {
+			sub_step_index_ = 0; 
+			std::random_device rd;
+			std::mt19937 gen(rd());
+			std::uniform_int_distribution<> distrib(0, 7);
+			step_index_ = distrib(gen);
+			RCLCPP_INFO(this->get_logger(), "Stepping in NEW direction %d", step_index_);
+			curr_x_ = traj_target_x_;
+			curr_y_ = traj_target_y_;
+			curr_z_ = traj_target_z_;
+		}
+	}
+	
+	void resetPosition(){
+		struct EEPos curr_pos = {curr_x_, curr_y_, curr_z_};
+		struct EEPos zero_pos = {ZERO_X_, ZERO_Y_, ZERO_Z_};
+		moveEESmooth(curr_pos, zero_pos);
+	}
+
+	void restorePosition(){
+		struct EEPos zero_pos = {ZERO_X_, ZERO_Y_, ZERO_Z_};
+		struct EEPos curr_pos = {curr_x_, curr_y_, curr_z_};
+		moveEESmooth(zero_pos, curr_pos);
+	}
+	
+	void moveEESmooth(const struct EEPos& currEEPos, const struct EEPos& targetEEPos) {
 		double t_normalized = (double)sub_step_index_ / (double)total_sub_steps_;
 
-		double interp_x = traj_start_x_ + t_normalized * (traj_target_x_ - traj_start_x_);
-		double interp_y = traj_start_y_ + t_normalized * (traj_target_y_ - traj_start_y_);
-		double interp_z = traj_start_z_ + t_normalized * (traj_target_z_ - traj_start_z_);
+		double interp_x = currEEPos.x + t_normalized * (targetEEPos.x - currEEPos.x);
+		double interp_y = currEEPos.y + t_normalized * (targetEEPos.y - currEEPos.y);
+		double interp_z = currEEPos.z + t_normalized * (targetEEPos.z - currEEPos.z);
 		
 		KDL::JntArray q_current(chain_.getNrOfJoints());
 		int ret = getJointAngles(interp_x, interp_y, interp_z, q_current);
@@ -150,35 +221,7 @@ private:
 			step_index_ = distrib(gen);
 			return;
 		}
-
-		sub_step_index_++;
-		
-		if (sub_step_index_ > total_sub_steps_) {
-			sub_step_index_ = 0; 
-			std::random_device rd;
-			std::mt19937 gen(rd());
-			std::uniform_int_distribution<> distrib(0, 7);
-			step_index_ = distrib(gen);
-			RCLCPP_INFO(this->get_logger(), "Stepping in NEW direction %d", step_index_);
-			curr_x_ = traj_target_x_;
-			curr_y_ = traj_target_y_;
-			curr_z_ = traj_target_z_;
-		}
-	}
-	
-	void interpolateJoints(const KDL::JntArray& q_start, const KDL::JntArray& q_end, int total_steps, std::vector<KDL::JntArray>& trajectory) {
-		trajectory.clear();
-		unsigned int n_joints = q_start.data.size();
-		KDL::JntArray delta_q = q_end;
-		KDL::Subtract(q_end, q_start, delta_q);
-		for (int i = 0; i <= total_steps; ++i) {
-			double t_normalized = (double)i / (double)total_steps;
-			KDL::JntArray q_step(n_joints);
-			for (unsigned int j = 0; j < n_joints; ++j) {
-				q_step(j) = q_start(j) + t_normalized * delta_q(j);
-			}
-			trajectory.push_back(q_step);
-		}
+		return;
 	}
 
 	int getJointAngles(const double x, const double y, const double z, KDL::JntArray& q_out){
@@ -205,7 +248,7 @@ private:
 			if (i == 3) {
 				corrected_angle -= M_PI; 
 			}
-			if (corrected_angle > upper_safety || corrected_angle < lower_safety) {
+			if (i == 3 && (corrected_angle > upper_safety || corrected_angle < lower_safety)) {
 				RCLCPP_ERROR(this->get_logger(), 
 					"!!! Joint %u angle %.4f radians exceeds limits (Min: %.2f, Max: %.2f) !!!", 
 					i, corrected_angle, lower_safety, upper_safety);
@@ -233,6 +276,76 @@ private:
 
 		publisher_->publish(std::move(msg));
 	}
+	
+	void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
+        try {
+			cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
+			cv::Mat frame = cv_ptr->image.clone();
+			
+			// --- Aruco Detection and Pose Estimation ---
+			std::vector<int> marker_ids;
+			std::vector<std::vector<cv::Point2f>> marker_corners, rejected_candidates;
+			cv::Mat rvecs, tvecs;
+	
+			// 1. Detect Markers
+			cv::aruco::detectMarkers(frame, dictionary_, marker_corners, marker_ids, parameters_, rejected_candidates);
+	
+			if (!marker_ids.empty()) {
+				// 2. Estimate Pose (Rvec and Tvec)
+				cv::aruco::estimatePoseSingleMarkers(
+					marker_corners, 
+					marker_length_, 
+					camera_matrix_, 
+					dist_coeffs_, 
+					rvecs, 
+					tvecs
+				);
+	
+				// 3. Draw and Process Results (only for the first detected marker)
+				for (size_t i = 0; i < marker_ids.size(); ++i) {
+					// Draw detected markers and axes
+					cv::aruco::drawDetectedMarkers(frame, marker_corners, marker_ids);
+					cv::aruco::drawAxis(frame, camera_matrix_, dist_coeffs_, rvecs.row(i), tvecs.row(i), marker_length_ * 0.5f);
+	
+					// Log the pose of the first marker (optional, but useful)
+					if (i == 0) {
+						double tx = tvecs.at<double>(i, 0);
+						double ty = tvecs.at<double>(i, 1);
+						double tz = tvecs.at<double>(i, 2);
+						
+						RCLCPP_INFO(this->get_logger(), 
+							"Marker %d Pose (X, Y, Z): (%.4f, %.4f, %.4f) m", 
+							marker_ids[i], tx, ty, tz);
+							
+						// !!! HERE you can integrate the Tvec into your IK target !!!
+						// For example, update curr_x_, curr_y_, curr_z_ based on Tvec
+						// This is how you would close the visual servoing loop.
+						// Note: You must transform this Tvec into your 'base_link' frame.
+					}
+				}
+			}
+			
+			// --- Display and Save Logic ---
+			std::lock_guard<std::mutex> lock(image_mutex_);
+			current_frame_ = frame.clone();
+			
+			// The display logic remains the same
+			cv::Mat frame_to_display = current_frame_.clone();
+			std::string step_info = "Step: " + std::to_string(step_index_) + " Sub: " + std::to_string(sub_step_index_);
+			cv::putText(frame_to_display, step_info, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 255, 0), 2);
+			
+			// cv::imshow("Camera View (IK Step)", frame_to_display);
+			// cv::imwrite("/home/steve/ros2_ws/src/kdl-tutorials/kdl_tutorial_01/test_camdata/img_s"+std::to_string(step_index_)+"_ss"+std::to_string(sub_step_index_)+".jpg", frame_to_display);
+			// cv::waitKey(1); // Required to update the window
+	
+		} catch (cv_bridge::Exception& e) {
+			RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+		}
+    }
+	
+	double ZERO_X_;
+	double ZERO_Y_;
+	double ZERO_Z_;
 
 	rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_;
@@ -251,6 +364,19 @@ private:
 	double traj_start_x_, traj_start_y_, traj_start_z_;
 	int sub_step_index_;                            // Current step index within the 100 steps
 	const int total_sub_steps_ = 100;               // Total steps for interpolation
+	
+	rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr camera_subscription_;
+    cv::Mat current_frame_;
+    std::mutex image_mutex_;
+	
+	// Aruco Detection Members
+	cv::Ptr<cv::aruco::Dictionary> dictionary_;
+	cv::Ptr<cv::aruco::DetectorParameters> parameters_;
+	float marker_length_ = 0.015; // 50 mm, **Set this to your actual marker size in meters**
+	
+	// Camera Calibration Data (You MUST replace these with your actual calibrated values)
+	cv::Mat camera_matrix_;
+	cv::Mat dist_coeffs_;
 };
 
 int main(int argc, char* argv[]){
@@ -262,6 +388,8 @@ int main(int argc, char* argv[]){
     executor.add_node(ik_node);
     // executor.add_node(fk_node);
 	executor.spin();
+	
+	cv::destroyAllWindows();
 
 	rclcpp::shutdown();
 	return 0;

@@ -11,6 +11,9 @@ find_package(std_msgs REQUIRED)
 find_package(orocos_kdl_vendor REQUIRED)
 find_package(kdl_parser REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(image_transport REQUIRED)
+find_package(OpenCV REQUIRED)
 
 set(dependencies
   rclcpp
@@ -18,6 +21,9 @@ set(dependencies
   orocos_kdl_vendor
   kdl_parser
   sensor_msgs
+  cv_bridge
+  image_transport
+  OpenCV
 )
 
 #########

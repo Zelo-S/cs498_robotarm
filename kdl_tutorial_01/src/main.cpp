@@ -7,7 +7,7 @@
 #include <sstream>
 #include <iomanip>
 #include <random>
-#include <thread> // Added for sleep in blocking move
+#include <thread>
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp/qos.hpp"
@@ -58,6 +58,9 @@ public:
 		step_size_diag_ = 0.0141421356;
         step_index_ = 0;
 		
+		// Camera device index - adjust if needed (usually 0 or /dev/video0)
+		camera_device_index_ = 0;
+		
 		subscription_ = this->create_subscription<std_msgs::msg::String>(
 		"robot_description",
 		rclcpp::QoS(rclcpp::KeepLast(1))
@@ -69,13 +72,6 @@ public:
             10
         );
 
-		camera_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
-			"/image_raw", 
-			1, 
-			std::bind(&MyRobotIK::imageCallback, this, _1)
-		);
-		RCLCPP_INFO(this->get_logger(), "Subscribing to camera topic: /image_raw");
-		
 		dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
 		parameters_ = cv::aruco::DetectorParameters::create();
 		
@@ -108,7 +104,7 @@ private:
 
 		solver_ = std::make_unique<KDL::ChainIkSolverPos_LMA>(chain_);
 
-		// TODO: THIS IS MAIN RUNNING SEQUENCE
+		// THIS IS MAIN RUNNING SEQUENCE
 		timer_ = this->create_wall_timer(
             1s, // long enough timeout to block
             std::bind(&MyRobotIK::runSequence, this)
@@ -146,12 +142,25 @@ private:
             moveEESmooth(targetEEPos, zeroEEPos, 1.5);
 
             // 4. Camera has clear view of scene, now take picture and state est 
-            RCLCPP_INFO(this->get_logger(), "4) *** PSEUDO CODE: Taking Picture/Reading State at Zero Position ***");
-            std::this_thread::sleep_for(500ms);
+            RCLCPP_INFO(this->get_logger(), "4) *** Capturing frame directly from camera ***");
+            cv::Mat captured_frame = captureSingleFrame();
+            
+            if (!captured_frame.empty()) {
+				std::string filename = "/home/steve/ros2_ws/src/kdl-tutorials/kdl_tutorial_01/test_camdata/img_step_" 
+									 + std::to_string(step_index_) + ".jpg";
+				cv::imwrite(filename, captured_frame);
+				RCLCPP_INFO(this->get_logger(), "Saved captured image: %s", filename.c_str());
+				
+				// Optional: Show the captured frame
+				cv::imshow("Captured Frame", captured_frame);
+				cv::waitKey(500); // Show for 500ms
+			} else {
+				RCLCPP_WARN(this->get_logger(), "Failed to capture frame from camera!");
+			}
 
             // 5. Restore current position(the one before going back to start position) 
             RCLCPP_INFO(this->get_logger(), "5) Restoring to target position...");
-            moveEESmooth(zeroEEPos, targetEEPos, 1.0); // 1.0 seconds duration
+            moveEESmooth(zeroEEPos, targetEEPos, 1.0);
 
             // 6. Update random state index for next iteration. In MPC, this will be chosen more "wisely"
             std::random_device rd;
@@ -163,6 +172,42 @@ private:
             // 6. Just wait a bit
             std::this_thread::sleep_for(500ms);
 		}
+	}
+	
+	cv::Mat captureSingleFrame() {
+		RCLCPP_INFO(this->get_logger(), "Opening camera device %d...", camera_device_index_);
+		cv::VideoCapture cap(camera_device_index_);
+		
+		if (!cap.isOpened()) {
+			RCLCPP_ERROR(this->get_logger(), "Failed to open camera device %d", camera_device_index_);
+			return cv::Mat();
+		}
+		
+		// Optional: Set camera properties for better quality
+		cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+		cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+		
+		// Allow camera to warm up and adjust exposure
+		RCLCPP_INFO(this->get_logger(), "Warming up camera...");
+		for (int i = 0; i < 5; i++) {
+			cv::Mat temp;
+			cap >> temp;
+			std::this_thread::sleep_for(50ms);
+		}
+		
+		// Capture the actual frame
+		cv::Mat frame;
+		cap >> frame;
+		
+		// Release camera immediately
+		cap.release();
+		RCLCPP_INFO(this->get_logger(), "Camera closed.");
+		
+		if (frame.empty()) {
+			RCLCPP_ERROR(this->get_logger(), "Captured frame is empty!");
+		}
+		
+		return frame;
 	}
 	
     void chooseNextTarget() {
@@ -277,36 +322,13 @@ private:
 		publisher_->publish(std::move(msg));
 	}
 	
-	void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
-		RCLCPP_DEBUG(this->get_logger(), "Calling imageCallback...");
-        try {
-			cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
-			cv::Mat frame = cv_ptr->image.clone();
-			
-			// --- Display and Save Logic ---
-			std::lock_guard<std::mutex> lock(image_mutex_);
-			current_frame_ = frame.clone();
-			
-			cv::Mat frame_to_display = current_frame_.clone();
-			std::string step_info = "Step: " + std::to_string(step_index_);
-			cv::putText(frame_to_display, step_info, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 255, 0), 2);
-			
-			cv::imshow("Camera View (IK Step)", frame_to_display);
-			// cv::imwrite("/home/steve/ros2_ws/src/kdl-tutorials/kdl_tutorial_01/test_camdata/img_s"+std::to_string(step_index_)+".jpg", frame_to_display);
-			cv::waitKey(1); 
-	
-		} catch (cv_bridge::Exception& e) {
-			RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
-		}
-    }
-	
 	double ZERO_X_;
 	double ZERO_Y_;
 	double ZERO_Z_;
 
 	rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_;
-    rclcpp::TimerBase::SharedPtr timer_; // Timer for the sequence
+    rclcpp::TimerBase::SharedPtr timer_;
 	KDL::Tree tree_;
 	KDL::Chain chain_;
 	std::unique_ptr<KDL::ChainIkSolverPos_LMA> solver_;
@@ -321,9 +343,8 @@ private:
 	
 	const int total_sub_steps_ = 100; // for traj-interpolation
 	
-	rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr camera_subscription_;
-    cv::Mat current_frame_;
-    std::mutex image_mutex_;
+	int camera_device_index_; // Camera device (e.g., 0 for /dev/video0)
+
 	
 	// Aruco Detection Members
 	cv::Ptr<cv::aruco::Dictionary> dictionary_;
@@ -339,25 +360,12 @@ int main(int argc, char* argv[]){
 	rclcpp::init(argc, argv);
     
 	auto ik_node = std::make_shared<MyRobotIK>();
-	// Start the blocking robot sequence in a separate thread
-    std::thread sequence_thread([&]() {
-        // You may need to call a function on the node object to start the sequence
-        // This assumes MyRobotIK::runSequence is modified slightly to run without a timer
-        ik_node->runSequenceInThread(); 
-    });
-
-    // The main thread runs the single-threaded executor, which handles:
-    // - The camera image callback (imageCallback)
-    // - The joint command publishing (publishJointCommand)
     rclcpp::executors::SingleThreadedExecutor executor;
     executor.add_node(ik_node);
-    executor.spin();
-    
-	// clean remaining up
-    if (sequence_thread.joinable()) {
-        sequence_thread.join();
-    }
+	executor.spin();
+	
 	cv::destroyAllWindows();
+
 	rclcpp::shutdown();
 	return 0;
 }

@@ -35,10 +35,20 @@
 using std::placeholders::_1;
 using namespace std::chrono_literals;
 
-struct EEPos {
+struct Point {
 	double x;
 	double y;
 	double z;
+};
+
+struct ObjectPose {
+	double x;
+	double y;
+	double z;
+	Point tlc;
+	Point trc;
+	Point blc;
+	Point brc;
 };
 
 class MyRobotIK : public rclcpp::Node{
@@ -118,7 +128,7 @@ private:
 		if (!solver_ || !rclcpp::ok()) {
 			return;
 		}
-
+		int iter = 0;
 		while (rclcpp::ok()) {
             RCLCPP_INFO(this->get_logger(), "--- STARTING NEW SEQUENCE ITERATION ---");
 
@@ -126,9 +136,9 @@ private:
             chooseNextTarget();
 
             // 2. IK calculate, move smooth to the chosen target position(pushing block move)
-            EEPos currEEPos = {curr_x_, curr_y_, curr_z_};
-            EEPos targetEEPos = {traj_target_x_, traj_target_y_, traj_target_z_};
-            EEPos zeroEEPos = {ZERO_X_, ZERO_Y_, ZERO_Z_};
+            Point currEEPos = {curr_x_, curr_y_, curr_z_};
+            Point targetEEPos = {traj_target_x_, traj_target_y_, traj_target_z_};
+            Point zeroEEPos = {ZERO_X_, ZERO_Y_, ZERO_Z_};
             RCLCPP_INFO(this->get_logger(), "2) Moving to target...");
             moveEESmooth(currEEPos, targetEEPos, 2.0);
 
@@ -144,25 +154,13 @@ private:
             // 4. Camera has clear view of scene, now take picture and state est 
             RCLCPP_INFO(this->get_logger(), "4) *** Capturing frame directly from camera ***");
             cv::Mat captured_frame = captureSingleFrame();
-            
-            if (!captured_frame.empty()) {
-				std::string filename = "/home/steve/ros2_ws/src/kdl-tutorials/kdl_tutorial_01/test_camdata/img_step_" 
-									 + std::to_string(step_index_) + ".jpg";
-				cv::imwrite(filename, captured_frame);
-				RCLCPP_INFO(this->get_logger(), "Saved captured image: %s", filename.c_str());
-				
-				// Optional: Show the captured frame
-				cv::imshow("Captured Frame", captured_frame);
-				cv::waitKey(500); // Show for 500ms
-			} else {
-				RCLCPP_WARN(this->get_logger(), "Failed to capture frame from camera!");
-			}
+			const ObjectPose& objectPose = getObjectPose(captured_frame);
 
             // 5. Restore current position(the one before going back to start position) 
             RCLCPP_INFO(this->get_logger(), "5) Restoring to target position...");
             moveEESmooth(zeroEEPos, targetEEPos, 1.0);
 
-            // 6. Update random state index for next iteration. In MPC, this will be chosen more "wisely"
+            // 6. Update random state index for next iteration, in MPC, this will be chosen more "wisely"
             std::random_device rd;
 			std::mt19937 gen(rd());
 			std::uniform_int_distribution<> distrib(0, 7);
@@ -171,7 +169,91 @@ private:
             
             // 6. Just wait a bit
             std::this_thread::sleep_for(500ms);
+			iter++;
 		}
+	}
+	
+	const ObjectPose& getObjectPose(cv::Mat frame){
+		static ObjectPose result_pose; 
+		result_pose = {-1.0, -1.0, -1.0, {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}};
+	
+		if (frame.empty()) {
+			RCLCPP_ERROR(this->get_logger(), "NO FRAME AVAILABLE!!!");
+			return result_pose;
+		}
+	
+		cv::Mat hsv_frame, yellow_mask;
+		cv::cvtColor(frame, hsv_frame, cv::COLOR_BGR2HSV);
+		cv::Scalar lower_yellow(20, 100, 100);
+		cv::Scalar upper_yellow(40, 255, 255);
+	
+		cv::inRange(hsv_frame, lower_yellow, upper_yellow, yellow_mask);
+
+		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(7, 7));
+		cv::morphologyEx(yellow_mask, yellow_mask, cv::MORPH_CLOSE, kernel); // Fills gaps
+		cv::morphologyEx(yellow_mask, yellow_mask, cv::MORPH_OPEN, kernel);  // Removes noise
+	
+		std::vector<std::vector<cv::Point>> contours;
+		cv::findContours(yellow_mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+	
+		if (contours.empty()) {
+			RCLCPP_WARN(this->get_logger(), "No yellow object found.");
+			return result_pose;
+		}
+	
+		double max_area = 0;
+		std::vector<cv::Point> target_contour;
+		for (const auto& contour : contours) {
+			double area = cv::contourArea(contour);
+			if (area > max_area) {
+				max_area = area;
+				target_contour = contour;
+			}
+		}
+	
+		if (max_area < 500) {
+			RCLCPP_WARN(this->get_logger(), "Largest yellow contour is too small (Area < 500).");
+			return result_pose;
+		}
+	
+		cv::RotatedRect rotated_rect = cv::minAreaRect(target_contour);
+		
+		cv::Point2f center_f = rotated_rect.center;
+		result_pose.x = center_f.x;
+		result_pose.y = center_f.y;
+		result_pose.z = 0;
+	
+		cv::Point2f corners_f[4];
+		rotated_rect.points(corners_f);
+	
+		// TODO: corner sorting
+		std::vector<cv::Point2f> sorted_corners(corners_f, corners_f + 4);
+		std::sort(sorted_corners.begin(), sorted_corners.end(), [](const cv::Point2f& a, const cv::Point2f& b) {
+			return a.x < b.x;
+		});
+		if (sorted_corners[0].y > sorted_corners[1].y) std::swap(sorted_corners[0], sorted_corners[1]); // TL, BL
+		if (sorted_corners[2].y > sorted_corners[3].y) std::swap(sorted_corners[2], sorted_corners[3]); // TR, BR
+		result_pose.tlc = {sorted_corners[0].x, sorted_corners[0].y, 0}; // TLC (TL in image space)
+		result_pose.blc = {sorted_corners[1].x, sorted_corners[1].y, 0}; // BLC (BL in image space)
+		result_pose.trc = {sorted_corners[2].x, sorted_corners[2].y, 0}; // TRC (TR in image space)
+		result_pose.brc = {sorted_corners[3].x, sorted_corners[3].y, 0}; // BRC (BR in image space)
+	
+	
+		cv::Mat debug_frame = frame.clone();
+		cv::Point corners_int[4];
+		for(int i = 0; i < 4; ++i) {
+			corners_int[i] = cv::Point(corners_f[i].x, corners_f[i].y);
+		}
+		std::vector<cv::Point> corners_vec(corners_int, corners_int + 4); 
+		std::vector<std::vector<cv::Point>> corners_list = {corners_vec};
+		cv::polylines(debug_frame, corners_list, true, cv::Scalar(0, 255, 255), 2);
+		cv::circle(debug_frame, center_f, 5, cv::Scalar(0, 0, 255), -1);
+	
+		RCLCPP_INFO(this->get_logger(), "[GET OBJECT POSE] GOT YELLOW OBJECT ");
+		cv::imshow("Detected Yellow Object", debug_frame);
+		cv::waitKey(500);
+	
+		return result_pose;
 	}
 	
 	cv::Mat captureSingleFrame() {
@@ -233,7 +315,7 @@ private:
         RCLCPP_INFO(this->get_logger(), "New Target: (%.4f, %.4f, %.4f)", traj_target_x_, traj_target_y_, traj_target_z_);
     }
 
-	void moveEESmooth(const struct EEPos& currEEPos, const struct EEPos& targetEEPos, const double total_duration_s) {
+	void moveEESmooth(const struct Point& currEEPos, const struct Point& targetEEPos, const double total_duration_s) {
         if (total_duration_s <= 0.0) return;
 
         // Calculate time per step

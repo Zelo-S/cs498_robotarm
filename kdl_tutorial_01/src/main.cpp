@@ -58,11 +58,11 @@ public:
 		
 		GOAL_X_ = 0.2335;
 		GOAL_Y_ = 0.0775;
-		GOAL_Z_ = 0.1300;
+		GOAL_Z_ = 0.1700;
         
 		ZERO_X_ = 0.100;
 		ZERO_Y_ = 0.000;
-		ZERO_Z_ = 0.130;
+		ZERO_Z_ = 0.170;
 
 		curr_x_ = ZERO_X_;
 		curr_y_ = ZERO_Y_;
@@ -165,7 +165,7 @@ private:
 
             // 5. Restore current position(the one before going back to start position) 
             RCLCPP_INFO(this->get_logger(), "5) Restoring to target position...");
-            moveEESmooth(zeroEEPos, targetEEPos, 1.0);
+            moveEESmooth(zeroEEPos, targetEEPos, 1.5);
 
             // 6. Update random state index for next iteration, in MPC, this will be chosen more "wisely"
 			step_index_ = distrib(gen);
@@ -431,7 +431,7 @@ private:
 	double curr_x_, curr_y_, curr_z_;
 	double traj_target_x_, traj_target_y_, traj_target_z_;
 	
-	const int total_sub_steps_ = 100; // for traj-interpolation
+	const int total_sub_steps_ = 400; // for traj-interpolation
 	
 	int camera_device_index_; // Camera device (e.g., 0 for /dev/video0)
 };

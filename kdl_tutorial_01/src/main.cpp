@@ -55,6 +55,10 @@ class MyRobotIK : public rclcpp::Node{
 public:
 	MyRobotIK() : Node("leg_inverse_kinematics_example"){
         joint_offset_ = {0, 0, 0, 0, 0};
+		
+		GOAL_X_ = 0.2335;
+		GOAL_Y_ = 0.0775;
+		GOAL_Z_ = 0.1300;
         
 		ZERO_X_ = 0.100;
 		ZERO_Y_ = 0.000;
@@ -81,19 +85,6 @@ public:
             "/forward_position_controller/commands", 
             10
         );
-
-		dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
-		parameters_ = cv::aruco::DetectorParameters::create();
-		
-		// TODO: REPLACE LATER
-		camera_matrix_ = (cv::Mat_<double>(3, 3) << 
-			449.55619677,   0.0,         347.40316357, 
-			0.0,         452.21172792, 223.13192478, 
-			0.0, 0.0, 1.0);
-			
-		dist_coeffs_ = (cv::Mat_<double>(5, 1) << 
-			0.67764151, -2.68262838,  0.01394802, -0.00579161,  3.23228471); 
-        RCLCPP_INFO(this->get_logger(), "MyRobotIK Node Initialized with Joint Command Publisher.");
 	}
 
 private:
@@ -128,12 +119,26 @@ private:
 		if (!solver_ || !rclcpp::ok()) {
 			return;
 		}
+		// TODO: definitely cleaner way to do this later
+		std::random_device rd;
+		std::mt19937 gen(rd());
+		std::uniform_int_distribution<> distrib(0, 7);
 		int iter = 0;
 		while (rclcpp::ok()) {
             RCLCPP_INFO(this->get_logger(), "--- STARTING NEW SEQUENCE ITERATION ---");
 
             // 1. Choose one of the 8 different positions from current position 
             chooseNextTarget();
+			int retry_choose_attempt = 0;
+			while(traj_target_x_ < ZERO_X_-0.001){
+				if(retry_choose_attempt > 100){
+					break;
+				}
+				RCLCPP_INFO(this->get_logger(), "End-effector to collide base to go from %f to %f  -- retrying chooseNextTarget #%d", curr_x_, traj_target_x_, retry_choose_attempt);
+				step_index_ = distrib(gen);
+				chooseNextTarget();
+				retry_choose_attempt++;
+			}
 
             // 2. IK calculate, move smooth to the chosen target position(pushing block move)
             Point currEEPos = {curr_x_, curr_y_, curr_z_};
@@ -155,15 +160,14 @@ private:
             RCLCPP_INFO(this->get_logger(), "4) *** Capturing frame directly from camera ***");
             cv::Mat captured_frame = captureSingleFrame();
 			const ObjectPose& objectPose = getObjectPose(captured_frame);
+			
+            RCLCPP_INFO(this->get_logger(), "Goal position is: (%f %f %f)", objectPose.x, objectPose.y, objectPose.z);
 
             // 5. Restore current position(the one before going back to start position) 
             RCLCPP_INFO(this->get_logger(), "5) Restoring to target position...");
             moveEESmooth(zeroEEPos, targetEEPos, 1.0);
 
             // 6. Update random state index for next iteration, in MPC, this will be chosen more "wisely"
-            std::random_device rd;
-			std::mt19937 gen(rd());
-			std::uniform_int_distribution<> distrib(0, 7);
 			step_index_ = distrib(gen);
             RCLCPP_INFO(this->get_logger(), "--- SEQUENCE COMPLETE. Next direction: %d ---", step_index_);
             
@@ -233,10 +237,10 @@ private:
 		});
 		if (sorted_corners[0].y > sorted_corners[1].y) std::swap(sorted_corners[0], sorted_corners[1]); // TL, BL
 		if (sorted_corners[2].y > sorted_corners[3].y) std::swap(sorted_corners[2], sorted_corners[3]); // TR, BR
-		result_pose.tlc = {sorted_corners[0].x, sorted_corners[0].y, 0}; // TLC (TL in image space)
-		result_pose.blc = {sorted_corners[1].x, sorted_corners[1].y, 0}; // BLC (BL in image space)
-		result_pose.trc = {sorted_corners[2].x, sorted_corners[2].y, 0}; // TRC (TR in image space)
-		result_pose.brc = {sorted_corners[3].x, sorted_corners[3].y, 0}; // BRC (BR in image space)
+		result_pose.tlc = {sorted_corners[0].x, sorted_corners[0].y, ZERO_Z_}; // TLC (TL in image space)
+		result_pose.blc = {sorted_corners[1].x, sorted_corners[1].y, ZERO_Z_}; // BLC (BL in image space)
+		result_pose.trc = {sorted_corners[2].x, sorted_corners[2].y, ZERO_Z_}; // TRC (TR in image space)
+		result_pose.brc = {sorted_corners[3].x, sorted_corners[3].y, ZERO_Z_}; // BRC (BR in image space)
 	
 	
 		cv::Mat debug_frame = frame.clone();
@@ -403,6 +407,10 @@ private:
 
 		publisher_->publish(std::move(msg));
 	}
+
+	double GOAL_X_;
+	double GOAL_Y_;
+	double GOAL_Z_;
 	
 	double ZERO_X_;
 	double ZERO_Y_;
@@ -426,16 +434,6 @@ private:
 	const int total_sub_steps_ = 100; // for traj-interpolation
 	
 	int camera_device_index_; // Camera device (e.g., 0 for /dev/video0)
-
-	
-	// Aruco Detection Members
-	cv::Ptr<cv::aruco::Dictionary> dictionary_;
-	cv::Ptr<cv::aruco::DetectorParameters> parameters_;
-	float marker_length_ = 0.015; 
-	
-	// Camera Calibration Data
-	cv::Mat camera_matrix_;
-	cv::Mat dist_coeffs_;
 };
 
 int main(int argc, char* argv[]){

@@ -127,51 +127,29 @@ private:
 		int iter = 0;
 		while (rclcpp::ok()) {
             RCLCPP_INFO(this->get_logger(), "--- STARTING NEW SEQUENCE ITERATION ---");
-
-            // 1. Choose one of the 8 different positions from current position 
-            chooseNextTarget();
-			int retry_choose_attempt = 0;
-			while(traj_target_x_ < ZERO_X_-0.001){
-				if(retry_choose_attempt > 100){
-					break;
-				}
-				RCLCPP_INFO(this->get_logger(), "End-effector to collide base to go from %f to %f  -- retrying chooseNextTarget #%d", curr_x_, traj_target_x_, retry_choose_attempt);
-				step_index_ = distrib(gen);
-				chooseNextTarget();
-				retry_choose_attempt++;
-			}
 			
-			// Singular Move Block
-			RCLCPP_INFO(this->get_logger(), "Debugging joint angles from the world 1...");
-			KDL::JntArray temp_q_out(chain_.getNrOfJoints());
-			KDL::Frame T_robot_world = getRobotPosFromWorld(-0.08, -0.07, ZERO_Z_, temp_q_out);
-			std::cout << "T_robot_world for (-0.08, -0.07) is: " << T_robot_world.p.x() << " " << T_robot_world.p.y() << " " << T_robot_world.p.z() << "\n\n";
-            Point currEEPos = {curr_x_, curr_y_, curr_z_};             // 2. IK calculate, move smooth to the chosen target position(pushing block move)
-            Point targetEEPos = {T_robot_world.p.x(), T_robot_world.p.y(), ZERO_Z_};
-            moveEESmooth(currEEPos, targetEEPos, 2.0);
+			// 2. Do a move sequence(in world), ignore chooseNextTarget() for now
+            RCLCPP_INFO(this->get_logger(), "--- RESET ---");
+			moveToWorldCoord(-0.08, -0.07, ZERO_Z_);
+			std::this_thread::sleep_for(500ms);
 
-            // 2.a Update current position after reaching target
-            curr_x_ = targetEEPos.x;
-            curr_y_ = targetEEPos.y;
-            curr_z_ = targetEEPos.z;
-            std::this_thread::sleep_for(500ms);
+            RCLCPP_INFO(this->get_logger(), "--- COORD 3 ---");
+			moveToWorldCoord(0, 0, ZERO_Z_);
+			std::this_thread::sleep_for(500ms);
 
-			RCLCPP_INFO(this->get_logger(), "Debugging joint angles from the world 2...");
-			T_robot_world = getRobotPosFromWorld(-0.08, 0.0, ZERO_Z_, temp_q_out); // std::cout << "T_robot_world is: " << T_robot_world.p.x() << " " << T_robot_world.p.y() << " " << T_robot_world.p.z() << "\n\n";
-			std::cout << "T_robot_world for (-0.08, 0.0) is: " << T_robot_world.p.x() << " " << T_robot_world.p.y() << " " << T_robot_world.p.z() << "\n\n";
-            // currEEPos = {curr_x_, curr_y_, curr_z_};             // 2. IK calculate, move smooth to the chosen target position(pushing block move)
-            // targetEEPos = {T_robot_world.p.x(), T_robot_world.p.y(), ZERO_Z_};
-            // moveEESmooth(currEEPos, targetEEPos, 2.0);
+            RCLCPP_INFO(this->get_logger(), "--- COORD 1 ---");
+			moveToWorldCoord(-0.04, 0, ZERO_Z_);
+			std::this_thread::sleep_for(500ms);
 
-            // 2.a Update current position after reaching target
-            curr_x_ = targetEEPos.x;
-            curr_y_ = targetEEPos.y;
-            curr_z_ = targetEEPos.z;
-            std::this_thread::sleep_for(500ms);
+            RCLCPP_INFO(this->get_logger(), "--- COORD 2 ---");
+			moveToWorldCoord(-0.08, 0, ZERO_Z_);
+			std::this_thread::sleep_for(500ms);
 
-            // 3. Go back to start position to get better camera top down view 
-            Point zeroEEPos = {ZERO_X_, ZERO_Y_, ZERO_Z_};
-            moveEESmooth(targetEEPos, zeroEEPos, 1.5);
+
+			// 3. Move back to zero pos to capture camera
+            RCLCPP_INFO(this->get_logger(), "--- RESET ---");
+			moveToWorldCoord(-0.08, -0.07, ZERO_Z_);
+			std::this_thread::sleep_for(500ms);
 
             // 4. Camera has clear view of scene, now take picture and state est 
             // RCLCPP_INFO(this->get_logger(), "4) *** Capturing frame directly from camera ***");
@@ -180,18 +158,24 @@ private:
 			
             RCLCPP_INFO(this->get_logger(), "Goal position is: (%f %f %f)", objectPose.x, objectPose.y, objectPose.z);
 
-            // 5. Restore current position(the one before going back to start position) 
-            // RCLCPP_INFO(this->get_logger(), "5) Restoring to target position...");
-            moveEESmooth(zeroEEPos, targetEEPos, 1.5);
-
-            // 6. Update random state index for next iteration, in MPC, this will be chosen more "wisely"
-			step_index_ = distrib(gen);
-            // RCLCPP_INFO(this->get_logger(), "--- SEQUENCE COMPLETE. Next direction: %d ---", step_index_);
-            
             // 6. Just wait a bit
             std::this_thread::sleep_for(500ms);
 			iter++;
 		}
+	}
+	
+	void moveToWorldCoord(double x, double y, double z){
+		z = ZERO_Z_;
+		RCLCPP_INFO(this->get_logger(), "Debugging joint angles from the world...");
+		KDL::JntArray temp_q_out(chain_.getNrOfJoints());
+		KDL::Frame T_robot_world = getRobotPosFromWorld(x, y, ZERO_Z_, temp_q_out);
+		std::cout << "T_robot_world for (-0.08, -0.07) is: " << T_robot_world.p.x() << " " << T_robot_world.p.y() << " " << T_robot_world.p.z() << "\n\n";
+		Point currEEPos = {curr_x_, curr_y_, curr_z_};             // 2. IK calculate, move smooth to the chosen target position(pushing block move)
+		Point targetEEPos = {T_robot_world.p.x(), T_robot_world.p.y(), ZERO_Z_};
+		moveEESmooth(currEEPos, targetEEPos, 2.0);
+		curr_x_ = targetEEPos.x;
+		curr_y_ = targetEEPos.y;
+		curr_z_ = targetEEPos.z;
 	}
 	
 	const ObjectPose& getObjectPose(cv::Mat frame){
@@ -377,6 +361,7 @@ private:
 		double y_w_b = -0.150;
 		double z_w_b = ZERO_Z_;
 		double z_angle_w_b = 45.0 * M_PI / 180.0; // 45 degrees in radians
+		z_angle_w_b = 0 * M_PI / 180.0; // TODO: 47 worked well with (-0.160, -0.150, z)
 		KDL::Rotation R_W_B = KDL::Rotation::RPY(0.0, 0.0, z_angle_w_b);
 		KDL::Vector P_W_B(x_w_b, y_w_b, z_w_b);
 		KDL::Frame T_W_B(R_W_B, P_W_B);

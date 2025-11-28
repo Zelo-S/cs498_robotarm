@@ -56,13 +56,14 @@ public:
 	MyRobotIK() : Node("leg_inverse_kinematics_example"){
         joint_offset_ = {0, 0, 0, 0, 0};
 		
-		GOAL_X_ = 0.2335;
-		GOAL_Y_ = 0.0775;
-		GOAL_Z_ = 0.1700;
         
 		ZERO_X_ = 0.100;
 		ZERO_Y_ = 0.000;
-		ZERO_Z_ = 0.170;
+		ZERO_Z_ = 0.175;
+
+		GOAL_X_ = 0.2335;
+		GOAL_Y_ = 0.0775;
+		GOAL_Z_ = ZERO_Z_;
 
 		curr_x_ = ZERO_X_;
 		curr_y_ = ZERO_Y_;
@@ -139,37 +140,53 @@ private:
 				chooseNextTarget();
 				retry_choose_attempt++;
 			}
-
-            // 2. IK calculate, move smooth to the chosen target position(pushing block move)
-            Point currEEPos = {curr_x_, curr_y_, curr_z_};
-            Point targetEEPos = {traj_target_x_, traj_target_y_, traj_target_z_};
-            Point zeroEEPos = {ZERO_X_, ZERO_Y_, ZERO_Z_};
-            RCLCPP_INFO(this->get_logger(), "2) Moving to target...");
+			
+			// Singular Move Block
+			RCLCPP_INFO(this->get_logger(), "Debugging joint angles from the world 1...");
+			KDL::JntArray temp_q_out(chain_.getNrOfJoints());
+			KDL::Frame T_robot_world = getRobotPosFromWorld(-0.08, -0.07, ZERO_Z_, temp_q_out);
+			std::cout << "T_robot_world for (-0.08, -0.07) is: " << T_robot_world.p.x() << " " << T_robot_world.p.y() << " " << T_robot_world.p.z() << "\n\n";
+            Point currEEPos = {curr_x_, curr_y_, curr_z_};             // 2. IK calculate, move smooth to the chosen target position(pushing block move)
+            Point targetEEPos = {T_robot_world.p.x(), T_robot_world.p.y(), ZERO_Z_};
             moveEESmooth(currEEPos, targetEEPos, 2.0);
 
             // 2.a Update current position after reaching target
-            curr_x_ = traj_target_x_;
-            curr_y_ = traj_target_y_;
-            curr_z_ = traj_target_z_;
+            curr_x_ = targetEEPos.x;
+            curr_y_ = targetEEPos.y;
+            curr_z_ = targetEEPos.z;
+            std::this_thread::sleep_for(500ms);
+
+			RCLCPP_INFO(this->get_logger(), "Debugging joint angles from the world 2...");
+			T_robot_world = getRobotPosFromWorld(-0.08, 0.0, ZERO_Z_, temp_q_out); // std::cout << "T_robot_world is: " << T_robot_world.p.x() << " " << T_robot_world.p.y() << " " << T_robot_world.p.z() << "\n\n";
+			std::cout << "T_robot_world for (-0.08, 0.0) is: " << T_robot_world.p.x() << " " << T_robot_world.p.y() << " " << T_robot_world.p.z() << "\n\n";
+            // currEEPos = {curr_x_, curr_y_, curr_z_};             // 2. IK calculate, move smooth to the chosen target position(pushing block move)
+            // targetEEPos = {T_robot_world.p.x(), T_robot_world.p.y(), ZERO_Z_};
+            // moveEESmooth(currEEPos, targetEEPos, 2.0);
+
+            // 2.a Update current position after reaching target
+            curr_x_ = targetEEPos.x;
+            curr_y_ = targetEEPos.y;
+            curr_z_ = targetEEPos.z;
+            std::this_thread::sleep_for(500ms);
 
             // 3. Go back to start position to get better camera top down view 
-            RCLCPP_INFO(this->get_logger(), "3) Moving to zero/reset position...");
+            Point zeroEEPos = {ZERO_X_, ZERO_Y_, ZERO_Z_};
             moveEESmooth(targetEEPos, zeroEEPos, 1.5);
 
             // 4. Camera has clear view of scene, now take picture and state est 
-            RCLCPP_INFO(this->get_logger(), "4) *** Capturing frame directly from camera ***");
+            // RCLCPP_INFO(this->get_logger(), "4) *** Capturing frame directly from camera ***");
             cv::Mat captured_frame = captureSingleFrame();
 			const ObjectPose& objectPose = getObjectPose(captured_frame);
 			
             RCLCPP_INFO(this->get_logger(), "Goal position is: (%f %f %f)", objectPose.x, objectPose.y, objectPose.z);
 
             // 5. Restore current position(the one before going back to start position) 
-            RCLCPP_INFO(this->get_logger(), "5) Restoring to target position...");
+            // RCLCPP_INFO(this->get_logger(), "5) Restoring to target position...");
             moveEESmooth(zeroEEPos, targetEEPos, 1.5);
 
             // 6. Update random state index for next iteration, in MPC, this will be chosen more "wisely"
 			step_index_ = distrib(gen);
-            RCLCPP_INFO(this->get_logger(), "--- SEQUENCE COMPLETE. Next direction: %d ---", step_index_);
+            // RCLCPP_INFO(this->get_logger(), "--- SEQUENCE COMPLETE. Next direction: %d ---", step_index_);
             
             // 6. Just wait a bit
             std::this_thread::sleep_for(500ms);
@@ -225,7 +242,7 @@ private:
 		cv::Point2f center_f = rotated_rect.center;
 		result_pose.x = center_f.x;
 		result_pose.y = center_f.y;
-		result_pose.z = 0;
+		result_pose.z = ZERO_Z_;
 	
 		cv::Point2f corners_f[4];
 		rotated_rect.points(corners_f);
@@ -353,6 +370,45 @@ private:
                 std::this_thread::sleep_for(time_per_step_chrono - elapsed_loop_time);
             }
         }
+	}
+	
+	KDL::Frame getRobotPosFromWorld(const double world_x, const double world_y, const double world_z, KDL::JntArray& q_out) {
+		double x_w_b = -0.160;
+		double y_w_b = -0.150;
+		double z_w_b = ZERO_Z_;
+		double z_angle_w_b = 45.0 * M_PI / 180.0; // 45 degrees in radians
+		KDL::Rotation R_W_B = KDL::Rotation::RPY(0.0, 0.0, z_angle_w_b);
+		KDL::Vector P_W_B(x_w_b, y_w_b, z_w_b);
+		KDL::Frame T_W_B(R_W_B, P_W_B);
+		KDL::Frame T_B_W = T_W_B.Inverse();
+		std::cout << std::fixed << std::setprecision(4);
+
+		KDL::Vector P_B_W = T_B_W.p;
+
+		KDL::Rotation R_B_W = T_B_W.M;
+		std::cout << "\nR_robotbase_world (Rotation Matrix):\n";
+		std::cout << R_B_W(0, 0) << "  " << R_B_W(0, 1) << "  " << R_B_W(0, 2) << "\n";
+		std::cout << R_B_W(1, 0) << "  " << R_B_W(1, 1) << "  " << R_B_W(1, 2) << "\n";
+		std::cout << R_B_W(2, 0) << "  " << R_B_W(2, 1) << "  " << R_B_W(2, 2) << "\n";
+
+		KDL::Vector P_world_kdl(world_x, world_y, world_z);
+
+		// Transform the world coordinate to the robot base frame coordinate
+		KDL::Rotation R_W_EE = KDL::Rotation::Identity(); 
+		KDL::Vector P_W_EE(world_x, world_y, world_z);
+		KDL::Frame T_W_EE(R_W_EE, P_W_EE);
+		KDL::Frame T_B_EE = T_B_W * T_W_EE; // gives coords in robot base frame 
+		// Now, call the existing KDL IK solver logic
+		KDL::JntArray q_init(chain_.getNrOfJoints());
+		for (unsigned int i = 0; i < chain_.getNrOfJoints(); ++i) {
+			q_init(i) = 0.0; // Initial guess for IK
+		}
+
+		RCLCPP_INFO(this->get_logger(), 
+        "Target World: (%.4f, %.4f, %.4f) -> Target Base: (%.4f, %.4f, %.4f)", 
+        world_x, world_y, world_z, T_B_EE.p.x(), T_B_EE.p.y(), T_B_EE.p.z());
+    
+		return T_B_EE;
 	}
 
 	int getJointAngles(const double x, const double y, const double z, KDL::JntArray& q_out){

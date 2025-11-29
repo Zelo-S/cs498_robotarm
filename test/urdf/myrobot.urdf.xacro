@@ -7,27 +7,29 @@
 	<xacro:property name="reduc_9_actuator_height" value="${0.058 * multiplier}"/>
 
 	<xacro:property name="waist_reduction_ratio" value="9"/>
+	<xacro:property name="waist_height" value="${0.085 * multiplier}"/>
 	<xacro:property name="waist_arm_height" value="${0.01 * multiplier}"/>
 
 	<xacro:property name="shoulder_reduction_ratio" value="9"/>
-	<xacro:property name="shoulder_arm_angle_offset" value="${-0.5*pi - 0.52/4.5*pi}"/>
+	<xacro:property name="shoulder_arm_angle_offset" value="${-0.5*pi+0.8/4.5*pi}"/>
 	<xacro:property name="shoulder_arm_length" value="${0.1385 * multiplier}"/>
 	<xacro:property name="shoulder_arm_width" value="${0.047 * multiplier}"/>
 
 	<xacro:property name="arm_height" value="${0.03 * multiplier}"/>
 
 	<xacro:property name="elbow_reduction_ratio" value="5"/>
-	<xacro:property name="elbow_arm1_angle_offset" value="${-pi/6 + 0.15/2.5*pi}"/>
+	<xacro:property name="elbow_arm1_angle_offset" value="${0}"/>
 	<xacro:property name="elbow_arm2_angle_offset" value="-${pi/4}"/>
 	<xacro:property name="elbow_arm1_length" value="${0.065 * multiplier}"/>
 	<xacro:property name="elbow_arm2_length" value="${0.110 * multiplier}"/>
 	<xacro:property name="elbow_arm_width" value="${0.020 * multiplier}"/>
+	<xacro:property name="right_differential_diameter" value="${0.045 * multiplier}"/>
 	
 	<xacro:property name="wrist_reduction_ratio" value="6"/>
-	<xacro:property name="wrist_angle_offset" value="${-pi/4 - elbow_arm1_angle_offset}"/>
+	<xacro:property name="wrist_angle_offset" value="${-pi/2-0.20}"/>
 	<xacro:property name="wrist_diameter" value="${0.04 * multiplier}"/>
 
-	<xacro:property name="end_effector_rod_len" value="${0.05 * multiplier}"/>
+	<xacro:property name="end_effector_rod_len" value="${0.100 * multiplier}"/>
 
 	
 	<material name="black">
@@ -59,33 +61,16 @@
 	<link name="waist">
 		<visual>
 			<geometry>
-				<cylinder length="${reduc_9_actuator_height}" radius="${reduc_9_actuator_diameter/2}" />
+				<cylinder length="${waist_height}" radius="${reduc_9_actuator_diameter/2}" />
 			</geometry>
-			<origin rpy="0 0 0" xyz="0 0 -${reduc_9_actuator_height/2}"/>
+			<origin rpy="0 0 0" xyz="0 0 -${waist_height/2}"/>
 			<material name="orange"/>
 		</visual>
 		<collision>
 			<geometry>
-				<cylinder length="${reduc_9_actuator_height}" radius="${reduc_9_actuator_diameter/2}" />
+				<cylinder length="${waist_height}" radius="${reduc_9_actuator_diameter/2}" />
 			</geometry>
-			<origin rpy="0 0 0" xyz="0 0 -${reduc_9_actuator_height/2}"/>
-		</collision>
-	</link>
-	
-
-	<link name="waist_arm">
-		<visual>
-			<geometry>
-				<cylinder radius="${reduc_9_actuator_diameter/2}" length="${waist_arm_height}"/>
-			</geometry>
-			<origin rpy="0 0 0" xyz="0 0 ${waist_arm_height/2}"/>
-			<material name="black"/>
-		</visual>
-		<collision>
-			<geometry>
-				<box size="${reduc_9_actuator_diameter} ${reduc_9_actuator_diameter} ${waist_arm_height}" />
-			</geometry>
-			<origin rpy="0 0 0" xyz="0 0 ${waist_arm_height/2}"/>
+			<origin rpy="0 0 0" xyz="0 0 -${waist_height/2}"/>
 		</collision>
 	</link>
 
@@ -189,7 +174,7 @@
 	<link name="right_differential">
 		<visual>
 			<geometry>
-				<cylinder length="${reduc_9_actuator_height/2}" radius="${wrist_diameter/4}" />
+				<cylinder length="${reduc_9_actuator_height/2}" radius="${right_differential_diameter/2}" />
 			</geometry>
 			<origin rpy="0 0 0" xyz="0 0 0"/>
 			<material name="green"/>
@@ -206,13 +191,6 @@
 
 	<!-- MODELING JOINTS -->
 	
-	<joint name="waist_arm_join" type="fixed">
-		<origin xyz="0 0 0" 
-				rpy="0 0 0"/>
-		<parent link="waist"/>
-		<child link="waist_arm"/>
-	</joint>
-	
 	<joint name="shoulder_arm_join" type="fixed">
 		<origin xyz="0 0 0" 
 				rpy="0 0 ${shoulder_arm_angle_offset}"/>
@@ -222,7 +200,7 @@
 	
 	<joint name="elbow_arm_join" type="fixed">
 		<origin xyz="0 0 ${arm_height/2}" 
-				rpy="0 0 ${elbow_arm1_angle_offset}"/>
+				rpy="0 0 ${-1.27/2.5*pi}"/>
 		<parent link="elbow"/>
 		<child link="elbow_arm1"/>
 	</joint>
@@ -244,7 +222,7 @@
 	<!-- MOVING JOINTS -->
 	
 	<joint name="waist_joint" type="revolute">
-		<origin xyz="0 0 ${reduc_9_actuator_height}"/>
+		<origin xyz="0 0 ${waist_height}"/>
 		<axis rpy="0 0 0" xyz="0 0 1"/>
 		<parent link="base_link"/>
 		<child link="waist"/>
@@ -252,7 +230,7 @@
 	</joint>
 
 	<joint name="shoulder_joint" type="revolute">
-		<origin xyz="0 0 ${waist_arm_height + reduc_9_actuator_diameter/2}"
+		<origin xyz="0 0 ${reduc_9_actuator_diameter/2}"
 				rpy="-${pi/2} 0 0"/>
 		<axis rpy="0 0 0" xyz="0 0 1"/>
 		<parent link="waist"/>
@@ -262,7 +240,7 @@
 	
 	<joint name="elbow_joint" type="revolute">
 		<origin xyz="${cos(shoulder_arm_angle_offset) * shoulder_arm_length} ${sin(shoulder_arm_angle_offset) * shoulder_arm_length} 0" 
-				rpy="${pi} 0 0"/>
+				rpy="${pi} 0 ${shoulder_arm_angle_offset}"/>
 		<axis rpy="0 0 0" xyz="0 0 1"/>
 		<parent link="shoulder"/>
 		<child link="elbow"/>

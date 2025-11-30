@@ -175,7 +175,7 @@
 			<geometry>
 				<cylinder length="${end_effector_rod_len}" radius="${wrist_diameter/8}" />
 			</geometry>
-			<origin rpy="0 0 0" xyz="0 0 ${end_effector_rod_len/2}"/>
+			<origin rpy="0 0 0" xyz="0 0 -${end_effector_rod_len/2}"/>
 			<material name="green"/>
 		</visual>
 		<collision>
@@ -281,7 +281,7 @@
 
 	<!-- Technically the ROLL of wrist -->
 	<joint name="left_differential_joint" type="revolute">
-		<origin xyz="0 0 0" 
+		<origin xyz="0 -${end_effector_rod_len} 0" 
 				rpy="${pi/2} 0 0"/>
 		<axis rpy="0 0 0" xyz="0 0 1"/>
 		<parent link="right_differential"/>

@@ -37,11 +37,21 @@ target_include_directories(main PRIVATE
   $<INSTALL_INTERFACE:include>)
 ament_target_dependencies(main ${dependencies})
 
+# 💡 ADD THE NEW EXECUTABLE HERE
+add_executable(fk
+  src/fk.cpp
+)
+target_include_directories(fk PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+ament_target_dependencies(fk ${dependencies})
+
 ###########
 # install #
 ###########
 install(TARGETS
   main
+  fk
   DESTINATION lib/${PROJECT_NAME}
 )
 

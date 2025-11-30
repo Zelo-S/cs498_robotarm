@@ -99,7 +99,7 @@ private:
         }
 
 		if (!tree_.getChain("base_link", "end_effector", chain_)) {
-             RCLCPP_ERROR(this->get_logger(), "Failed to get kinematic chain from 'base_link' to 'end_effector'.");
+            RCLCPP_ERROR(this->get_logger(), "Failed to get kinematic chain from 'base_link' to 'end_effector'.");
             return;
         }
 		RCLCPP_INFO(this->get_logger(), "KDL Chain built with %d joints.", chain_.getNrOfJoints());
@@ -128,28 +128,30 @@ private:
 		while (rclcpp::ok()) {
             RCLCPP_INFO(this->get_logger(), "--- STARTING NEW SEQUENCE ITERATION ---");
 			
-			// 2. Do a move sequence(in world), ignore chooseNextTarget() for now
+			RCLCPP_INFO(this->get_logger(), "Debugging joint angles...");
+			KDL::JntArray temp_q_out(chain_.getNrOfJoints());
+			Point currEEPos = {0.100, 0, 0.175};             // 2. IK calculate, move smooth to the chosen target position(pushing block move)
+			Point targetEEPos = {0.110, 0, 0.175};
+			moveEESmooth(currEEPos, targetEEPos, 2.0);
+			
+			/*// 2. Do a move sequence(in world), ignore chooseNextTarget() for now
             RCLCPP_INFO(this->get_logger(), "--- RESET ---");
-			moveToWorldCoord(-0.08, -0.07, ZERO_Z_);
+			moveToWorldCoord(0, -0.160, ZERO_Z_);
 			std::this_thread::sleep_for(500ms);
 
             RCLCPP_INFO(this->get_logger(), "--- COORD 3 ---");
-			moveToWorldCoord(0, 0, ZERO_Z_);
+			moveToWorldCoord(0.01, -0.160, ZERO_Z_);
 			std::this_thread::sleep_for(500ms);
 
-            RCLCPP_INFO(this->get_logger(), "--- COORD 1 ---");
-			moveToWorldCoord(-0.04, 0, ZERO_Z_);
-			std::this_thread::sleep_for(500ms);
-
-            RCLCPP_INFO(this->get_logger(), "--- COORD 2 ---");
-			moveToWorldCoord(-0.08, 0, ZERO_Z_);
+            RCLCPP_INFO(this->get_logger(), "--- COORD 3 ---");
+			moveToWorldCoord(0.02, -0.160, ZERO_Z_);
 			std::this_thread::sleep_for(500ms);
 
 
 			// 3. Move back to zero pos to capture camera
             RCLCPP_INFO(this->get_logger(), "--- RESET ---");
-			moveToWorldCoord(-0.08, -0.07, ZERO_Z_);
-			std::this_thread::sleep_for(500ms);
+			moveToWorldCoord(0, -0.160, ZERO_Z_);
+			std::this_thread::sleep_for(500ms);*/
 
             // 4. Camera has clear view of scene, now take picture and state est 
             // RCLCPP_INFO(this->get_logger(), "4) *** Capturing frame directly from camera ***");
@@ -357,11 +359,10 @@ private:
 	}
 	
 	KDL::Frame getRobotPosFromWorld(const double world_x, const double world_y, const double world_z, KDL::JntArray& q_out) {
-		double x_w_b = -0.160;
-		double y_w_b = -0.150;
+		double x_w_b = -0.154;
+		double y_w_b = -0.160;
 		double z_w_b = ZERO_Z_;
-		double z_angle_w_b = 45.0 * M_PI / 180.0; // 45 degrees in radians
-		z_angle_w_b = 0 * M_PI / 180.0; // TODO: 47 worked well with (-0.160, -0.150, z)
+		double z_angle_w_b = 0.0 * M_PI / 180.0; // 45 degrees in radians
 		KDL::Rotation R_W_B = KDL::Rotation::RPY(0.0, 0.0, z_angle_w_b);
 		KDL::Vector P_W_B(x_w_b, y_w_b, z_w_b);
 		KDL::Frame T_W_B(R_W_B, P_W_B);

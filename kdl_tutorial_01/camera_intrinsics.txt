@@ -1,0 +1,35 @@
+camera matrix:
+ [[512.94740081   0.         318.66958553]
+ [  0.         511.26261526 263.21302734]
+ [  0.           0.           1.        ]]
+distortion coefficients:  [ 0.26637287  0.00299308  0.02343413 -0.00994815 -0.98856916]
+
+
+3x3 checkerboard,(of 6x6 full grid), 10mm square edge lengths
+
+====
+
+With new calib:
+Calibration Matrix:
+[[449.55619677   0.         347.40316357]
+ [  0.         452.21172792 223.13192478]
+ [  0.           0.           1.        ]]
+Disortion:  [[ 0.67764151 -2.68262838  0.01394802 -0.00579161  3.23228471]]
+total error:  0.12685415225500407
+
+
+
+At reset position(during run):
+- shoulder: 0.69101573436504
+- left_differential: 0.0014381069886428104
+- waist: 0.005571333000445766
+- elbow: 0.29918377791724576
+- right_differential: -1.184840368976253
+
+Target:
+[main-1] [INFO] [1764197545.992544191] [leg_inverse_kinematics_example]: Target World: (-0.1000, -0.0700, 0.1750) -> Target Base: (0.1131, 0.0000, 0.0000)
+waist: Temp q for 0 is 0.004419
+shoulder: Temp q for 1 is 2.191119
+elbow: Temp q for 2 is 1.325917
+ Temp q for 3 is 2.435977
+ Temp q for 4 is -0.789742

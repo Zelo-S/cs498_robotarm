@@ -57,13 +57,9 @@ public:
         joint_offset_ = {0, 0, 0, 0, 0};
 		
         
-		ZERO_X_ = 0.100;
+		ZERO_X_ = 0.120;
 		ZERO_Y_ = 0.000;
-		ZERO_Z_ = 0.175;
-
-		GOAL_X_ = 0.2335;
-		GOAL_Y_ = 0.0775;
-		GOAL_Z_ = ZERO_Z_;
+		ZERO_Z_ = 0.130;
 
 		curr_x_ = ZERO_X_;
 		curr_y_ = ZERO_Y_;

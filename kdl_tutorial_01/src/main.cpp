@@ -45,10 +45,9 @@ struct ObjectPose {
 	double x;
 	double y;
 	double z;
-	Point tlc;
-	Point trc;
-	Point blc;
-	Point brc;
+	double r;
+	double p;
+	double yw;	
 };
 
 class MyRobotIK : public rclcpp::Node{
@@ -68,6 +67,39 @@ public:
         step_size_ = 0.02; 
 		step_size_diag_ = 0.0141421356;
         step_index_ = 0;
+		
+		/*camera_matrix = (cv::Mat_<double>(3, 3) <<
+			3027.295717240753, 0, 502.5763413358262,
+			0, 2940.135565245645, 221.9959609898277,
+			0, 0, 1
+		);
+
+		// --- Distortion Coefficients (D) - 1x5 Double-Precision ---
+		// This is a single row, 5 column matrix.
+		dist_coeffs = (cv::Mat_<double>(1, 5) <<
+			11.39361170222715, -168.4910558986219, -0.07359531333450298, 1.435873612908785, 1564.41683752833
+		);*/
+		
+		// Currently the best intrinsics
+		camera_matrix = (cv::Mat_<double>(3, 3) <<
+			449.55619677,   0.,         347.40316357,
+			0.,         452.21172792, 223.13192478,
+			0.,           0.,           1.       
+		);
+
+		// --- Distortion Coefficients (D) - 1x5 Double-Precision ---
+		// This is a single row, 5 column matrix.
+		dist_coeffs = (cv::Mat_<double>(1, 5) <<
+			0.67764151, -2.68262838,  0.01394802, -0.00579161,  3.23228471
+		);
+		
+		target_object_pose_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+		bottom_left_m_pose_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+		top_right_m_pose_ =   {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+		// Optional: Verification output
+		std::cout << "Camera Matrix (K):\n" << camera_matrix << std::endl;
+		std::cout << "\nDistortion Coefficients (D):\n" << dist_coeffs << std::endl;
 		
 		// Camera device index - adjust if needed (usually 0 or /dev/video0)
 		camera_device_index_ = 0;
@@ -152,10 +184,20 @@ private:
             // 4. Camera has clear view of scene, now take picture and state est 
             // RCLCPP_INFO(this->get_logger(), "4) *** Capturing frame directly from camera ***");
             cv::Mat captured_frame = captureSingleFrame();
-			const ObjectPose& objectPose = getObjectPose(captured_frame);
+			updateObjectPoseArUco(captured_frame); // TODO: updates position of ID0, 1, and 2
 			
-            RCLCPP_INFO(this->get_logger(), "Goal position is: (%f %f %f)", objectPose.x, objectPose.y, objectPose.z);
+            RCLCPP_INFO(this->get_logger(), "Goal position is: (%f %f %f) with rot (%f %f %f)", target_object_pose_.x, target_object_pose_.y, target_object_pose_.z, target_object_pose_.r, target_object_pose_.p, target_object_pose_.yw);
+            RCLCPP_INFO(this->get_logger(), "Bottom Left position is: (%f %f %f) with rot (%f %f %f)", bottom_left_m_pose_.x, bottom_left_m_pose_.y, bottom_left_m_pose_.z, bottom_left_m_pose_.r, bottom_left_m_pose_.p, bottom_left_m_pose_.yw);
+            RCLCPP_INFO(this->get_logger(), "Top Right is: (%f %f %f) with rot (%f %f %f)", top_right_m_pose_.x, top_right_m_pose_.y, top_right_m_pose_.z, top_right_m_pose_.r, top_right_m_pose_.p, top_right_m_pose_.yw);
 
+            // 5. Restore current position(the one before going back to start position) 
+            RCLCPP_INFO(this->get_logger(), "5) Restoring to target position...");
+            moveEESmooth(zeroEEPos, targetEEPos, 1.5);
+
+            // 6. Update random state index for next iteration, in MPC, this will be chosen more "wisely"
+			step_index_ = distrib(gen);
+            RCLCPP_INFO(this->get_logger(), "--- SEQUENCE COMPLETE. Next direction: %d ---", step_index_);
+            
             // 6. Just wait a bit
             std::this_thread::sleep_for(500ms);
 			iter++;
@@ -176,87 +218,66 @@ private:
 		curr_z_ = targetEEPos.z;
 	}
 	
-	const ObjectPose& getObjectPose(cv::Mat frame){
-		static ObjectPose result_pose; 
-		result_pose = {-1.0, -1.0, -1.0, {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}};
-	
-		if (frame.empty()) {
-			RCLCPP_ERROR(this->get_logger(), "NO FRAME AVAILABLE!!!");
-			return result_pose;
-		}
-	
-		cv::Mat hsv_frame, yellow_mask;
-		cv::cvtColor(frame, hsv_frame, cv::COLOR_BGR2HSV);
-		cv::Scalar lower_yellow(20, 100, 100);
-		cv::Scalar upper_yellow(40, 255, 255);
-	
-		cv::inRange(hsv_frame, lower_yellow, upper_yellow, yellow_mask);
+	void updateObjectPoseArUco(cv::Mat frame) {
+		const float MARKER_LENGTH_M = 0.025f;
 
-		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(7, 7));
-		cv::morphologyEx(yellow_mask, yellow_mask, cv::MORPH_CLOSE, kernel); // Fills gaps
-		cv::morphologyEx(yellow_mask, yellow_mask, cv::MORPH_OPEN, kernel);  // Removes noise
-	
-		std::vector<std::vector<cv::Point>> contours;
-		cv::findContours(yellow_mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-	
-		if (contours.empty()) {
-			RCLCPP_WARN(this->get_logger(), "No yellow object found.");
-			return result_pose;
-		}
-	
-		double max_area = 0;
-		std::vector<cv::Point> target_contour;
-		for (const auto& contour : contours) {
-			double area = cv::contourArea(contour);
-			if (area > max_area) {
-				max_area = area;
-				target_contour = contour;
-			}
-		}
-	
-		if (max_area < 500) {
-			RCLCPP_WARN(this->get_logger(), "Largest yellow contour is too small (Area < 500).");
-			return result_pose;
-		}
-	
-		cv::RotatedRect rotated_rect = cv::minAreaRect(target_contour);
+		cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
+		cv::Ptr<cv::aruco::DetectorParameters> params = cv::aruco::DetectorParameters::create();
+
+		std::vector<std::vector<cv::Point2f>> marker_corners;
+		std::vector<int> marker_ids;
 		
-		cv::Point2f center_f = rotated_rect.center;
-		result_pose.x = center_f.x;
-		result_pose.y = center_f.y;
-		result_pose.z = ZERO_Z_;
-	
-		cv::Point2f corners_f[4];
-		rotated_rect.points(corners_f);
-	
-		// TODO: corner sorting
-		std::vector<cv::Point2f> sorted_corners(corners_f, corners_f + 4);
-		std::sort(sorted_corners.begin(), sorted_corners.end(), [](const cv::Point2f& a, const cv::Point2f& b) {
-			return a.x < b.x;
-		});
-		if (sorted_corners[0].y > sorted_corners[1].y) std::swap(sorted_corners[0], sorted_corners[1]); // TL, BL
-		if (sorted_corners[2].y > sorted_corners[3].y) std::swap(sorted_corners[2], sorted_corners[3]); // TR, BR
-		result_pose.tlc = {sorted_corners[0].x, sorted_corners[0].y, ZERO_Z_}; // TLC (TL in image space)
-		result_pose.blc = {sorted_corners[1].x, sorted_corners[1].y, ZERO_Z_}; // BLC (BL in image space)
-		result_pose.trc = {sorted_corners[2].x, sorted_corners[2].y, ZERO_Z_}; // TRC (TR in image space)
-		result_pose.brc = {sorted_corners[3].x, sorted_corners[3].y, ZERO_Z_}; // BRC (BR in image space)
-	
-	
+		cv::Mat rvecs, tvecs;
+
+		cv::aruco::detectMarkers(frame, dictionary, marker_corners, marker_ids, params);
+		
 		cv::Mat debug_frame = frame.clone();
-		cv::Point corners_int[4];
-		for(int i = 0; i < 4; ++i) {
-			corners_int[i] = cv::Point(corners_f[i].x, corners_f[i].y);
+
+		if (!marker_ids.empty()) {
+			cv::aruco::estimatePoseSingleMarkers(marker_corners, MARKER_LENGTH_M, camera_matrix, dist_coeffs, rvecs, tvecs);
+			cv::aruco::drawDetectedMarkers(debug_frame, marker_corners, marker_ids);
+
+			for (size_t i = 0; i < marker_ids.size(); ++i) {
+				int current_id = marker_ids[i];
+				cv::Mat rvec_single = rvecs.row(i);
+				cv::Mat tvec_single = tvecs.row(i);
+				std::cout << "ID " << i << " has tvec: " << tvec_single << " and rvec: " << rvec_single << "\n";
+				cv::aruco::drawAxis(debug_frame, camera_matrix, dist_coeffs, rvec_single, tvec_single, MARKER_LENGTH_M);
+
+				if (current_id == 0) { // TODO: WE GOT THE OBJECT
+					target_object_pose_.r = rvec_single.at<double>(0, 0);
+					target_object_pose_.p = rvec_single.at<double>(0, 1);
+					target_object_pose_.yw = rvec_single.at<double>(0, 2);
+					target_object_pose_.x = tvec_single.at<double>(0, 0);
+					target_object_pose_.y = tvec_single.at<double>(0, 1);
+					target_object_pose_.z = tvec_single.at<double>(0, 2);
+				} else if (current_id == 1) { // TODO: WE GOT THE BOTTOM LEFT CORNER
+					bottom_left_m_pose_.r = rvec_single.at<double>(1, 0);
+					bottom_left_m_pose_.p = rvec_single.at<double>(1, 1);
+					bottom_left_m_pose_.yw = rvec_single.at<double>(1, 2);
+					bottom_left_m_pose_.x = tvec_single.at<double>(1, 0);
+					bottom_left_m_pose_.y = tvec_single.at<double>(1, 1);
+					bottom_left_m_pose_.z = tvec_single.at<double>(1, 2);
+				} else if (current_id == 2) { // TODO: WE GOT THE TOP RIGHT CORNER
+					top_right_m_pose_.r = rvec_single.at<double>(2, 0);
+					top_right_m_pose_.p = rvec_single.at<double>(2, 1);
+					top_right_m_pose_.yw = rvec_single.at<double>(2, 2);
+					top_right_m_pose_.x = tvec_single.at<double>(2, 0);
+					top_right_m_pose_.y = tvec_single.at<double>(2, 1);
+					top_right_m_pose_.z = tvec_single.at<double>(2, 2);
+				}
+			}
+			cv::imshow("Detected ArUco Markers with Axes", debug_frame);
+			cv::waitKey(500);
+		} else {
+			std::cerr << "No ArUco marker found." << std::endl;
 		}
-		std::vector<cv::Point> corners_vec(corners_int, corners_int + 4); 
-		std::vector<std::vector<cv::Point>> corners_list = {corners_vec};
-		cv::polylines(debug_frame, corners_list, true, cv::Scalar(0, 255, 255), 2);
-		cv::circle(debug_frame, center_f, 5, cv::Scalar(0, 0, 255), -1);
-	
-		RCLCPP_INFO(this->get_logger(), "[GET OBJECT POSE] GOT YELLOW OBJECT ");
-		cv::imshow("Detected Yellow Object", debug_frame);
-		cv::waitKey(500);
-	
-		return result_pose;
+		
+		// TODO: Ideally, the following poses should be true:
+		/*
+		Bottom left: [main-1] ID 1 has tvec: [0.01270646748333517, 0.002764713168765423, 0.2909191344214433] and rvec: [-3.119321549009085, -0.08162650435649363, -0.2430842012509089]
+		Top right: [main-1] ID 2 has tvec: [0.07742773227251662, -0.06253287122362568, 0.304633047630919] and rvec: [2.09123639890954, -2.056450963305633, -0.9875874028890603]
+		*/
 	}
 	
 	cv::Mat captureSingleFrame() {
@@ -268,11 +289,9 @@ private:
 			return cv::Mat();
 		}
 		
-		// Optional: Set camera properties for better quality
 		cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
 		cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
 		
-		// Allow camera to warm up and adjust exposure
 		RCLCPP_INFO(this->get_logger(), "Warming up camera...");
 		for (int i = 0; i < 5; i++) {
 			cv::Mat temp;
@@ -280,11 +299,9 @@ private:
 			std::this_thread::sleep_for(50ms);
 		}
 		
-		// Capture the actual frame
 		cv::Mat frame;
 		cap >> frame;
 		
-		// Release camera immediately
 		cap.release();
 		RCLCPP_INFO(this->get_logger(), "Camera closed.");
 		
@@ -472,6 +489,16 @@ private:
 	const int total_sub_steps_ = 400; // for traj-interpolation
 	
 	int camera_device_index_; // Camera device (e.g., 0 for /dev/video0)
+
+	// These members must be defined in your class/context
+	cv::Mat camera_matrix; // 3x3 Intrinsic matrix (K)
+	cv::Mat dist_coeffs;   // 1x5 or 1x8 Distortion coefficients (D)
+	const float MARKER_LENGTH_M = 0.025f; // 25mm in meters
+	
+	ObjectPose target_object_pose_;
+	ObjectPose bottom_left_m_pose_;
+	ObjectPose top_right_m_pose_;
+
 };
 
 int main(int argc, char* argv[]){

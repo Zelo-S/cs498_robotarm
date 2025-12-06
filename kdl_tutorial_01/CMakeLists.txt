@@ -37,21 +37,20 @@ target_include_directories(main PRIVATE
   $<INSTALL_INTERFACE:include>)
 ament_target_dependencies(main ${dependencies})
 
-# 💡 ADD THE NEW EXECUTABLE HERE
-add_executable(fk
-  src/fk.cpp
+add_executable(camdbg
+  src/camdbg.cpp
 )
-target_include_directories(fk PRIVATE
+target_include_directories(camdbg PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(fk ${dependencies})
+ament_target_dependencies(camdbg ${dependencies})
 
 ###########
 # install #
 ###########
 install(TARGETS
   main
-  fk
+  camdbg
   DESTINATION lib/${PROJECT_NAME}
 )
 

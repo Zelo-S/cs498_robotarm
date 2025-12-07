@@ -211,10 +211,8 @@ private:
 
 		ObjectPose target_object_pose;
 		target_object_pose = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-		ObjectPose bottom_left_m_pose;
-		bottom_left_m_pose = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-		ObjectPose top_right_m_pose;
-		top_right_m_pose = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+		ObjectPose top_left_m_pose;
+		top_left_m_pose = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
 		cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
 		cv::Ptr<cv::aruco::DetectorParameters> params = cv::aruco::DetectorParameters::create();
@@ -246,27 +244,20 @@ private:
 					target_object_pose.x = tvec_single.at<double>(0, 0);
 					target_object_pose.y = tvec_single.at<double>(0, 1);
 					target_object_pose.z = tvec_single.at<double>(0, 2);
-				} else if (current_id == 1) { // BOTTOM LEFT CORNER
-					bottom_left_m_pose.r = rvec_single.at<double>(0, 0);
-					bottom_left_m_pose.p = rvec_single.at<double>(0, 1);
-					bottom_left_m_pose.yw = rvec_single.at<double>(0, 2);
-					bottom_left_m_pose.x = tvec_single.at<double>(0, 0);
-					bottom_left_m_pose.y = tvec_single.at<double>(0, 1);
-					bottom_left_m_pose.z = tvec_single.at<double>(0, 2);
-				} else if (current_id == 2) { // TOP RIGHT CORNER
-					top_right_m_pose.r = rvec_single.at<double>(0, 0);
-					top_right_m_pose.p = rvec_single.at<double>(0, 1);
-					top_right_m_pose.yw = rvec_single.at<double>(0, 2);
-					top_right_m_pose.x = tvec_single.at<double>(0, 0);
-					top_right_m_pose.y = tvec_single.at<double>(0, 1);
-					top_right_m_pose.z = tvec_single.at<double>(0, 2);
-					}
+				} else if (current_id == 1) { // TOP LEFT CORNER
+					top_left_m_pose.r = rvec_single.at<double>(0, 0);
+					top_left_m_pose.p = rvec_single.at<double>(0, 1);
+					top_left_m_pose.yw = rvec_single.at<double>(0, 2);
+					top_left_m_pose.x = tvec_single.at<double>(0, 0);
+					top_left_m_pose.y = tvec_single.at<double>(0, 1);
+					top_left_m_pose.z = tvec_single.at<double>(0, 2);
+				}
 			}
 			double curr_x = target_object_pose.x;
 			double curr_y = target_object_pose.y;
 			
-			double top_left_corner_x = top_right_m_pose.x;
-			double top_left_corner_y = bottom_left_m_pose.y; 
+			double top_left_corner_x = top_left_m_pose.x;
+			double top_left_corner_y = top_left_m_pose.y; 
 				
 			double distance = std::sqrt((curr_x - top_left_corner_x) * (curr_x - top_left_corner_x) + (curr_y - top_left_corner_y) * (curr_y - top_left_corner_y));
 			std::stringstream ss;
@@ -287,8 +278,8 @@ private:
 		
 		// TODO: Ideally, the following poses should be true:
 		/*
-		Bottom left: [main-1] ID 1 has tvec: [0.01270646748333517, 0.002764713168765423, 0.2909191344214433] and rvec: [-3.119321549009085, -0.08162650435649363, -0.2430842012509089]
-		Top right: [main-1] ID 2 has tvec: [0.07742773227251662, -0.06253287122362568, 0.304633047630919] and rvec: [2.09123639890954, -2.056450963305633, -0.9875874028890603]
+		[main-1] ID 1 has tvec: [-0.02261585825783664, -0.04563866880499076, 0.2964818466842044] and rvec: [0.5512701218469557, -2.997373104571034, -0.08813415073767798]
+		[main-1] ID 2 has tvec: [0.07742773227251662, -0.06253287122362568, 0.304633047630919] and rvec: [2.09123639890954, -2.056450963305633, -0.9875874028890603]
 		*/
 		
 		return target_object_pose;

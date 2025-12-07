@@ -188,6 +188,7 @@ private:
             RCLCPP_INFO(this->get_logger(), "4) *** Capturing frame directly from camera ***");
             cv::Mat captured_frame = captureSingleFrame();
 			const ObjectPose objectPose = updateObjectPoseArUco(captured_frame); // TODO: updates position of ID0, 1, and 2
+			RCLCPP_INFO(this->get_logger(), "AFTER Getting you the target object pose...");
 			
             RCLCPP_INFO(this->get_logger(), "Goal position is: (%f %f %f) with rot (%f %f %f)", objectPose.x, objectPose.y, objectPose.z, objectPose.r, objectPose.p, objectPose.yw);
 
@@ -205,7 +206,7 @@ private:
 		}
 	}
 	
-	const ObjectPose& updateObjectPoseArUco(cv::Mat frame) {
+	const ObjectPose updateObjectPoseArUco(cv::Mat frame) {
 		const float MARKER_LENGTH_M = 0.025f;
 
 		ObjectPose target_object_pose;
@@ -271,13 +272,13 @@ private:
 			std::stringstream ss;
 			ss << std::fixed << std::setprecision(4) << "Dist: " << distance;
 			std::string dist_text = ss.str();
-			/*cv::putText(debug_frame, // target image
+			cv::putText(debug_frame, // target image
                 dist_text, // text
                 cv::Point(100, 100), // top-left position
                 cv::FONT_HERSHEY_DUPLEX,
                 1.0, // font scale
                 cv::Scalar(118, 185, 0), // font color (BGR)
-                2);*/
+                2);
 			cv::imshow("Detected ArUco Markers with Axes", debug_frame);
 			cv::waitKey(500);
 		} else {
@@ -290,7 +291,6 @@ private:
 		Top right: [main-1] ID 2 has tvec: [0.07742773227251662, -0.06253287122362568, 0.304633047630919] and rvec: [2.09123639890954, -2.056450963305633, -0.9875874028890603]
 		*/
 		
-
 		return target_object_pose;
 	}
 	

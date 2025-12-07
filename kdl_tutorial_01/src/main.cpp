@@ -55,6 +55,9 @@ public:
 	MyRobotIK() : Node("leg_inverse_kinematics_example"){
         joint_offset_ = {0, 0, 0, 0, 0};
 		
+		GOAL_X_ = 0.2335;
+		GOAL_Y_ = 0.0775;
+		GOAL_Z_ = 0.1700;
         
 		ZERO_X_ = 0.120;
 		ZERO_Y_ = 0.000;
@@ -92,10 +95,6 @@ public:
 		dist_coeffs = (cv::Mat_<double>(1, 5) <<
 			0.67764151, -2.68262838,  0.01394802, -0.00579161,  3.23228471
 		);
-		
-		target_object_pose_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-		bottom_left_m_pose_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-		top_right_m_pose_ =   {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
 		// Optional: Verification output
 		std::cout << "Camera Matrix (K):\n" << camera_matrix << std::endl;
@@ -127,7 +126,7 @@ private:
         }
 
 		if (!tree_.getChain("base_link", "end_effector", chain_)) {
-            RCLCPP_ERROR(this->get_logger(), "Failed to get kinematic chain from 'base_link' to 'end_effector'.");
+             RCLCPP_ERROR(this->get_logger(), "Failed to get kinematic chain from 'base_link' to 'end_effector'.");
             return;
         }
 		RCLCPP_INFO(this->get_logger(), "KDL Chain built with %d joints.", chain_.getNrOfJoints());
@@ -155,40 +154,42 @@ private:
 		int iter = 0;
 		while (rclcpp::ok()) {
             RCLCPP_INFO(this->get_logger(), "--- STARTING NEW SEQUENCE ITERATION ---");
-			
-			RCLCPP_INFO(this->get_logger(), "Debugging joint angles...");
-			KDL::JntArray temp_q_out(chain_.getNrOfJoints());
-			Point currEEPos = {0.100, 0, 0.175};             // 2. IK calculate, move smooth to the chosen target position(pushing block move)
-			Point targetEEPos = {0.110, 0, 0.175};
-			moveEESmooth(currEEPos, targetEEPos, 2.0);
-			
-			/*// 2. Do a move sequence(in world), ignore chooseNextTarget() for now
-            RCLCPP_INFO(this->get_logger(), "--- RESET ---");
-			moveToWorldCoord(0, -0.160, ZERO_Z_);
-			std::this_thread::sleep_for(500ms);
 
-            RCLCPP_INFO(this->get_logger(), "--- COORD 3 ---");
-			moveToWorldCoord(0.01, -0.160, ZERO_Z_);
-			std::this_thread::sleep_for(500ms);
+            // 1. Choose one of the 8 different positions from current position 
+            chooseNextTarget();
+			int retry_choose_attempt = 0;
+			while(traj_target_x_ < ZERO_X_-0.001){
+				if(retry_choose_attempt > 100){
+					break;
+				}
+				RCLCPP_INFO(this->get_logger(), "End-effector to collide base to go from %f to %f  -- retrying chooseNextTarget #%d", curr_x_, traj_target_x_, retry_choose_attempt);
+				step_index_ = distrib(gen);
+				chooseNextTarget();
+				retry_choose_attempt++;
+			}
 
-            RCLCPP_INFO(this->get_logger(), "--- COORD 3 ---");
-			moveToWorldCoord(0.02, -0.160, ZERO_Z_);
-			std::this_thread::sleep_for(500ms);
+            // 2. IK calculate, move smooth to the chosen target position(pushing block move)
+            Point currEEPos = {curr_x_, curr_y_, curr_z_};
+            Point targetEEPos = {traj_target_x_, traj_target_y_, traj_target_z_};
+            Point zeroEEPos = {ZERO_X_, ZERO_Y_, ZERO_Z_};
+            RCLCPP_INFO(this->get_logger(), "2) Moving to target...");
+            moveEESmooth(currEEPos, targetEEPos, 2.0);
 
+            // 2.a Update current position after reaching target
+            curr_x_ = traj_target_x_;
+            curr_y_ = traj_target_y_;
+            curr_z_ = traj_target_z_;
 
-			// 3. Move back to zero pos to capture camera
-            RCLCPP_INFO(this->get_logger(), "--- RESET ---");
-			moveToWorldCoord(0, -0.160, ZERO_Z_);
-			std::this_thread::sleep_for(500ms);*/
+            // 3. Go back to start position to get better camera top down view 
+            RCLCPP_INFO(this->get_logger(), "3) Moving to zero/reset position...");
+            moveEESmooth(targetEEPos, zeroEEPos, 1.5);
 
             // 4. Camera has clear view of scene, now take picture and state est 
-            // RCLCPP_INFO(this->get_logger(), "4) *** Capturing frame directly from camera ***");
+            RCLCPP_INFO(this->get_logger(), "4) *** Capturing frame directly from camera ***");
             cv::Mat captured_frame = captureSingleFrame();
-			updateObjectPoseArUco(captured_frame); // TODO: updates position of ID0, 1, and 2
+			const ObjectPose objectPose = updateObjectPoseArUco(captured_frame); // TODO: updates position of ID0, 1, and 2
 			
-            RCLCPP_INFO(this->get_logger(), "Goal position is: (%f %f %f) with rot (%f %f %f)", target_object_pose_.x, target_object_pose_.y, target_object_pose_.z, target_object_pose_.r, target_object_pose_.p, target_object_pose_.yw);
-            RCLCPP_INFO(this->get_logger(), "Bottom Left position is: (%f %f %f) with rot (%f %f %f)", bottom_left_m_pose_.x, bottom_left_m_pose_.y, bottom_left_m_pose_.z, bottom_left_m_pose_.r, bottom_left_m_pose_.p, bottom_left_m_pose_.yw);
-            RCLCPP_INFO(this->get_logger(), "Top Right is: (%f %f %f) with rot (%f %f %f)", top_right_m_pose_.x, top_right_m_pose_.y, top_right_m_pose_.z, top_right_m_pose_.r, top_right_m_pose_.p, top_right_m_pose_.yw);
+            RCLCPP_INFO(this->get_logger(), "Goal position is: (%f %f %f) with rot (%f %f %f)", objectPose.x, objectPose.y, objectPose.z, objectPose.r, objectPose.p, objectPose.yw);
 
             // 5. Restore current position(the one before going back to start position) 
             RCLCPP_INFO(this->get_logger(), "5) Restoring to target position...");
@@ -204,22 +205,15 @@ private:
 		}
 	}
 	
-	void moveToWorldCoord(double x, double y, double z){
-		z = ZERO_Z_;
-		RCLCPP_INFO(this->get_logger(), "Debugging joint angles from the world...");
-		KDL::JntArray temp_q_out(chain_.getNrOfJoints());
-		KDL::Frame T_robot_world = getRobotPosFromWorld(x, y, ZERO_Z_, temp_q_out);
-		std::cout << "T_robot_world for (-0.08, -0.07) is: " << T_robot_world.p.x() << " " << T_robot_world.p.y() << " " << T_robot_world.p.z() << "\n\n";
-		Point currEEPos = {curr_x_, curr_y_, curr_z_};             // 2. IK calculate, move smooth to the chosen target position(pushing block move)
-		Point targetEEPos = {T_robot_world.p.x(), T_robot_world.p.y(), ZERO_Z_};
-		moveEESmooth(currEEPos, targetEEPos, 2.0);
-		curr_x_ = targetEEPos.x;
-		curr_y_ = targetEEPos.y;
-		curr_z_ = targetEEPos.z;
-	}
-	
-	void updateObjectPoseArUco(cv::Mat frame) {
+	const ObjectPose& updateObjectPoseArUco(cv::Mat frame) {
 		const float MARKER_LENGTH_M = 0.025f;
+
+		ObjectPose target_object_pose;
+		target_object_pose = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+		ObjectPose bottom_left_m_pose;
+		bottom_left_m_pose = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+		ObjectPose top_right_m_pose;
+		top_right_m_pose = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
 		cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
 		cv::Ptr<cv::aruco::DetectorParameters> params = cv::aruco::DetectorParameters::create();
@@ -244,29 +238,46 @@ private:
 				std::cout << "ID " << i << " has tvec: " << tvec_single << " and rvec: " << rvec_single << "\n";
 				cv::aruco::drawAxis(debug_frame, camera_matrix, dist_coeffs, rvec_single, tvec_single, MARKER_LENGTH_M);
 
-				if (current_id == 0) { // TODO: WE GOT THE OBJECT
-					target_object_pose_.r = rvec_single.at<double>(0, 0);
-					target_object_pose_.p = rvec_single.at<double>(0, 1);
-					target_object_pose_.yw = rvec_single.at<double>(0, 2);
-					target_object_pose_.x = tvec_single.at<double>(0, 0);
-					target_object_pose_.y = tvec_single.at<double>(0, 1);
-					target_object_pose_.z = tvec_single.at<double>(0, 2);
-				} else if (current_id == 1) { // TODO: WE GOT THE BOTTOM LEFT CORNER
-					bottom_left_m_pose_.r = rvec_single.at<double>(1, 0);
-					bottom_left_m_pose_.p = rvec_single.at<double>(1, 1);
-					bottom_left_m_pose_.yw = rvec_single.at<double>(1, 2);
-					bottom_left_m_pose_.x = tvec_single.at<double>(1, 0);
-					bottom_left_m_pose_.y = tvec_single.at<double>(1, 1);
-					bottom_left_m_pose_.z = tvec_single.at<double>(1, 2);
-				} else if (current_id == 2) { // TODO: WE GOT THE TOP RIGHT CORNER
-					top_right_m_pose_.r = rvec_single.at<double>(2, 0);
-					top_right_m_pose_.p = rvec_single.at<double>(2, 1);
-					top_right_m_pose_.yw = rvec_single.at<double>(2, 2);
-					top_right_m_pose_.x = tvec_single.at<double>(2, 0);
-					top_right_m_pose_.y = tvec_single.at<double>(2, 1);
-					top_right_m_pose_.z = tvec_single.at<double>(2, 2);
-				}
+				if (current_id == 0) { // OBJECT
+					target_object_pose.r = rvec_single.at<double>(0, 0);
+					target_object_pose.p = rvec_single.at<double>(0, 1);
+					target_object_pose.yw = rvec_single.at<double>(0, 2);
+					target_object_pose.x = tvec_single.at<double>(0, 0);
+					target_object_pose.y = tvec_single.at<double>(0, 1);
+					target_object_pose.z = tvec_single.at<double>(0, 2);
+				} else if (current_id == 1) { // BOTTOM LEFT CORNER
+					bottom_left_m_pose.r = rvec_single.at<double>(0, 0);
+					bottom_left_m_pose.p = rvec_single.at<double>(0, 1);
+					bottom_left_m_pose.yw = rvec_single.at<double>(0, 2);
+					bottom_left_m_pose.x = tvec_single.at<double>(0, 0);
+					bottom_left_m_pose.y = tvec_single.at<double>(0, 1);
+					bottom_left_m_pose.z = tvec_single.at<double>(0, 2);
+				} else if (current_id == 2) { // TOP RIGHT CORNER
+					top_right_m_pose.r = rvec_single.at<double>(0, 0);
+					top_right_m_pose.p = rvec_single.at<double>(0, 1);
+					top_right_m_pose.yw = rvec_single.at<double>(0, 2);
+					top_right_m_pose.x = tvec_single.at<double>(0, 0);
+					top_right_m_pose.y = tvec_single.at<double>(0, 1);
+					top_right_m_pose.z = tvec_single.at<double>(0, 2);
+					}
 			}
+			double curr_x = target_object_pose.x;
+			double curr_y = target_object_pose.y;
+			
+			double top_left_corner_x = top_right_m_pose.x;
+			double top_left_corner_y = bottom_left_m_pose.y; 
+				
+			double distance = std::sqrt((curr_x - top_left_corner_x) * (curr_x - top_left_corner_x) + (curr_y - top_left_corner_y) * (curr_y - top_left_corner_y));
+			std::stringstream ss;
+			ss << std::fixed << std::setprecision(4) << "Dist: " << distance;
+			std::string dist_text = ss.str();
+			/*cv::putText(debug_frame, // target image
+                dist_text, // text
+                cv::Point(100, 100), // top-left position
+                cv::FONT_HERSHEY_DUPLEX,
+                1.0, // font scale
+                cv::Scalar(118, 185, 0), // font color (BGR)
+                2);*/
 			cv::imshow("Detected ArUco Markers with Axes", debug_frame);
 			cv::waitKey(500);
 		} else {
@@ -278,6 +289,9 @@ private:
 		Bottom left: [main-1] ID 1 has tvec: [0.01270646748333517, 0.002764713168765423, 0.2909191344214433] and rvec: [-3.119321549009085, -0.08162650435649363, -0.2430842012509089]
 		Top right: [main-1] ID 2 has tvec: [0.07742773227251662, -0.06253287122362568, 0.304633047630919] and rvec: [2.09123639890954, -2.056450963305633, -0.9875874028890603]
 		*/
+		
+
+		return target_object_pose;
 	}
 	
 	cv::Mat captureSingleFrame() {
@@ -370,45 +384,6 @@ private:
             }
         }
 	}
-	
-	KDL::Frame getRobotPosFromWorld(const double world_x, const double world_y, const double world_z, KDL::JntArray& q_out) {
-		double x_w_b = -0.154;
-		double y_w_b = -0.160;
-		double z_w_b = ZERO_Z_;
-		double z_angle_w_b = 0.0 * M_PI / 180.0; // 45 degrees in radians
-		KDL::Rotation R_W_B = KDL::Rotation::RPY(0.0, 0.0, z_angle_w_b);
-		KDL::Vector P_W_B(x_w_b, y_w_b, z_w_b);
-		KDL::Frame T_W_B(R_W_B, P_W_B);
-		KDL::Frame T_B_W = T_W_B.Inverse();
-		std::cout << std::fixed << std::setprecision(4);
-
-		KDL::Vector P_B_W = T_B_W.p;
-
-		KDL::Rotation R_B_W = T_B_W.M;
-		std::cout << "\nR_robotbase_world (Rotation Matrix):\n";
-		std::cout << R_B_W(0, 0) << "  " << R_B_W(0, 1) << "  " << R_B_W(0, 2) << "\n";
-		std::cout << R_B_W(1, 0) << "  " << R_B_W(1, 1) << "  " << R_B_W(1, 2) << "\n";
-		std::cout << R_B_W(2, 0) << "  " << R_B_W(2, 1) << "  " << R_B_W(2, 2) << "\n";
-
-		KDL::Vector P_world_kdl(world_x, world_y, world_z);
-
-		// Transform the world coordinate to the robot base frame coordinate
-		KDL::Rotation R_W_EE = KDL::Rotation::Identity(); 
-		KDL::Vector P_W_EE(world_x, world_y, world_z);
-		KDL::Frame T_W_EE(R_W_EE, P_W_EE);
-		KDL::Frame T_B_EE = T_B_W * T_W_EE; // gives coords in robot base frame 
-		// Now, call the existing KDL IK solver logic
-		KDL::JntArray q_init(chain_.getNrOfJoints());
-		for (unsigned int i = 0; i < chain_.getNrOfJoints(); ++i) {
-			q_init(i) = 0.0; // Initial guess for IK
-		}
-
-		RCLCPP_INFO(this->get_logger(), 
-        "Target World: (%.4f, %.4f, %.4f) -> Target Base: (%.4f, %.4f, %.4f)", 
-        world_x, world_y, world_z, T_B_EE.p.x(), T_B_EE.p.y(), T_B_EE.p.z());
-    
-		return T_B_EE;
-	}
 
 	int getJointAngles(const double x, const double y, const double z, KDL::JntArray& q_out){
 		KDL::JntArray q_init(chain_.getNrOfJoints());
@@ -494,11 +469,6 @@ private:
 	cv::Mat camera_matrix; // 3x3 Intrinsic matrix (K)
 	cv::Mat dist_coeffs;   // 1x5 or 1x8 Distortion coefficients (D)
 	const float MARKER_LENGTH_M = 0.025f; // 25mm in meters
-	
-	ObjectPose target_object_pose_;
-	ObjectPose bottom_left_m_pose_;
-	ObjectPose top_right_m_pose_;
-
 };
 
 int main(int argc, char* argv[]){

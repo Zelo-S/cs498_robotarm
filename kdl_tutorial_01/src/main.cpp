@@ -55,52 +55,32 @@ public:
 	MyRobotIK() : Node("leg_inverse_kinematics_example"){
         joint_offset_ = {0, 0, 0, 0, 0};
 		
-		GOAL_X_ = 0.2335;
-		GOAL_Y_ = 0.0775;
-		GOAL_Z_ = 0.1700;
-        
 		ZERO_X_ = 0.120;
 		ZERO_Y_ = 0.000;
 		ZERO_Z_ = 0.130;
 
+		GOAL_X_ =   -0.0177;
+		GOAL_Y_ =   -0.0345;
+		GOAL_YAW_ = -0.4210;
+
 		curr_x_ = ZERO_X_;
 		curr_y_ = ZERO_Y_;
 		curr_z_ = ZERO_Z_;
-
-        step_size_ = 0.02; 
-		step_size_diag_ = 0.0141421356;
+		
+        step_size_ = 0.005; 
+		step_size_diag_ = step_size_ / std::sqrt(2);
         step_index_ = 0;
 		
-		/*camera_matrix = (cv::Mat_<double>(3, 3) <<
-			3027.295717240753, 0, 502.5763413358262,
-			0, 2940.135565245645, 221.9959609898277,
-			0, 0, 1
-		);
-
-		// --- Distortion Coefficients (D) - 1x5 Double-Precision ---
-		// This is a single row, 5 column matrix.
-		dist_coeffs = (cv::Mat_<double>(1, 5) <<
-			11.39361170222715, -168.4910558986219, -0.07359531333450298, 1.435873612908785, 1564.41683752833
-		);*/
-		
-		// Currently the best intrinsics
 		camera_matrix = (cv::Mat_<double>(3, 3) <<
 			449.55619677,   0.,         347.40316357,
 			0.,         452.21172792, 223.13192478,
 			0.,           0.,           1.       
 		);
 
-		// --- Distortion Coefficients (D) - 1x5 Double-Precision ---
-		// This is a single row, 5 column matrix.
 		dist_coeffs = (cv::Mat_<double>(1, 5) <<
 			0.67764151, -2.68262838,  0.01394802, -0.00579161,  3.23228471
 		);
 
-		// Optional: Verification output
-		std::cout << "Camera Matrix (K):\n" << camera_matrix << std::endl;
-		std::cout << "\nDistortion Coefficients (D):\n" << dist_coeffs << std::endl;
-		
-		// Camera device index - adjust if needed (usually 0 or /dev/video0)
 		camera_device_index_ = 0;
 		
 		subscription_ = this->create_subscription<std_msgs::msg::String>(
@@ -126,7 +106,7 @@ private:
         }
 
 		if (!tree_.getChain("base_link", "end_effector", chain_)) {
-             RCLCPP_ERROR(this->get_logger(), "Failed to get kinematic chain from 'base_link' to 'end_effector'.");
+            RCLCPP_ERROR(this->get_logger(), "Failed to get kinematic chain from 'base_link' to 'end_effector'.");
             return;
         }
 		RCLCPP_INFO(this->get_logger(), "KDL Chain built with %d joints.", chain_.getNrOfJoints());
@@ -142,7 +122,9 @@ private:
         subscription_.reset();
 	}
 
-	// is blocking
+	/*
+	 * Main running loop for the system
+	 */
 	void runSequence() {
 		if (!solver_ || !rclcpp::ok()) {
 			return;
@@ -188,16 +170,18 @@ private:
             RCLCPP_INFO(this->get_logger(), "4) *** Capturing frame directly from camera ***");
             cv::Mat captured_frame = captureSingleFrame();
 			const ObjectPose objectPose = updateObjectPoseArUco(captured_frame); // TODO: updates position of ID0, 1, and 2
-			RCLCPP_INFO(this->get_logger(), "AFTER Getting you the target object pose...");
+
+			RCLCPP_INFO(this->get_logger(), "5) Plannning next %d horizon...", PLAN_HORIZON);
+			int next_action = planUsingHorizon(objectPose);
 			
             RCLCPP_INFO(this->get_logger(), "Goal position is: (%f %f %f) with rot (%f %f %f)", objectPose.x, objectPose.y, objectPose.z, objectPose.r, objectPose.p, objectPose.yw);
 
             // 5. Restore current position(the one before going back to start position) 
-            RCLCPP_INFO(this->get_logger(), "5) Restoring to target position...");
+            RCLCPP_INFO(this->get_logger(), "6) Restoring to target position...");
             moveEESmooth(zeroEEPos, targetEEPos, 1.5);
 
             // 6. Update random state index for next iteration, in MPC, this will be chosen more "wisely"
-			step_index_ = distrib(gen);
+			step_index_ = 0; // distrib(gen);
             RCLCPP_INFO(this->get_logger(), "--- SEQUENCE COMPLETE. Next direction: %d ---", step_index_);
             
             // 6. Just wait a bit
@@ -206,6 +190,84 @@ private:
 		}
 	}
 	
+	/*
+	 * Runs predictNextState for PLAN_HORIZON # of steps, selects next best direction to push in using MPC
+	 */
+	int planUsingHorizon(const ObjectPose start_object_pose) {
+		RCLCPP_INFO(this->get_logger(), "\n\t====== Start Planning ======\n");
+		const std::vector<int> ACTIONS = {0, 1, 7};
+
+		ObjectPose curr_object_pose;
+		curr_object_pose= {start_object_pose.x, start_object_pose.y, start_object_pose.z, start_object_pose.r, start_object_pose.p, start_object_pose.yw};
+
+		ObjectPose next_step_object_pose;
+		int next_step_action = -1;
+
+		ObjectPose planning_object_pose = {start_object_pose.x, start_object_pose.y, start_object_pose.z, start_object_pose.r, start_object_pose.p, start_object_pose.yw};
+		for(int i=0; i<PLAN_HORIZON; ++i){
+
+			double curr_distance = gradeDistanceMetric(planning_object_pose);
+			int planning_best_action = -1;
+
+			ObjectPose planning_next_best_object_pose;
+
+			for(int action : ACTIONS){
+				// Object pose for getting result pose of Action "action"
+				ObjectPose candidate_planning_next_best_object_pose;
+				candidate_planning_next_best_object_pose = {planning_object_pose.x, planning_object_pose.y, planning_object_pose.z, planning_object_pose.r, planning_object_pose.p, planning_object_pose.yw};
+				candidate_planning_next_best_object_pose = predictNextState(candidate_planning_next_best_object_pose, action); // TAKE SINGLE STEP in current horizon step
+				double candidate_next_distance = gradeDistanceMetric(candidate_planning_next_best_object_pose);
+
+				if(candidate_next_distance < curr_distance){
+					curr_distance = candidate_next_distance;
+					planning_next_best_object_pose = candidate_planning_next_best_object_pose;
+					planning_best_action = action;
+				}
+			}
+			
+			planning_object_pose = {planning_next_best_object_pose.x, planning_next_best_object_pose.y, planning_next_best_object_pose.z, planning_next_best_object_pose.r, planning_next_best_object_pose.p, planning_next_best_object_pose.yw};;	
+			RCLCPP_INFO(this->get_logger(), "\tOn horizon %d: chose best action %d = min distance of %f", i, planning_best_action, planning_object_pose);
+			
+			if (i == 0){
+				next_step_object_pose = {planning_object_pose.x, planning_object_pose.y, planning_object_pose.z, planning_object_pose.r, planning_object_pose.p, planning_object_pose.yw};;	
+				next_step_action = planning_best_action;
+			}
+		}
+		
+		double final_min_distance = gradeDistanceMetric(next_step_object_pose);
+		RCLCPP_INFO(this->get_logger(), "\tAfter HORIZON steps, next best action is %d = distance of %f", next_step_action, final_min_distance);
+		RCLCPP_INFO(this->get_logger(), "\n\t====== End Planning ======\n");
+		return next_step_action;
+	}
+	
+	/*
+	 * Gets s_k+1 from (s_k, a_k)
+	 */
+	const ObjectPose predictNextState(const ObjectPose target_object_pose, int direction){
+		ObjectPose next_object_pose;
+		next_object_pose= {target_object_pose.x, target_object_pose.y, target_object_pose.z, target_object_pose.r, target_object_pose.p, target_object_pose.yw};
+		if (direction == 0){ // Straight +x push
+			next_object_pose.x -= step_size_ / std::sqrt(2); // TODO: X-push direction will be negative in aruco frame
+			next_object_pose.y -= step_size_ / std::sqrt(2); // TODO: Y-push direction will be negative in aruco frame
+		}else if (direction == 1){ // Diagonal left-hand push
+			next_object_pose.y -= step_size_;
+		}else if (direction == 7){ // Diagonal right-hand push
+			next_object_pose.x -= step_size_;
+		}
+		return next_object_pose;
+	}	
+	
+	/*
+	 * Grades distance and (rotation)(soon) between current object pose and goal object pose
+	 */
+	double gradeDistanceMetric(const ObjectPose target_object_pose){
+		double distance = std::sqrt((target_object_pose.x - GOAL_X_) * (target_object_pose.x - GOAL_X_) + (target_object_pose.y - GOAL_Y_) * (target_object_pose.y - GOAL_Y_));
+		return distance;
+	}
+	
+	/*
+	 * Handles getting aruco poses of goal + object markers, gets distance and shows frame
+	 */
 	const ObjectPose updateObjectPoseArUco(cv::Mat frame) {
 		const float MARKER_LENGTH_M = 0.025f;
 
@@ -238,28 +300,35 @@ private:
 				cv::aruco::drawAxis(debug_frame, camera_matrix, dist_coeffs, rvec_single, tvec_single, MARKER_LENGTH_M);
 
 				if (current_id == 0) { // OBJECT
-					target_object_pose.r = rvec_single.at<double>(0, 0);
-					target_object_pose.p = rvec_single.at<double>(0, 1);
-					target_object_pose.yw = rvec_single.at<double>(0, 2);
 					target_object_pose.x = tvec_single.at<double>(0, 0);
 					target_object_pose.y = tvec_single.at<double>(0, 1);
 					target_object_pose.z = tvec_single.at<double>(0, 2);
+					cv::Mat R;
+					cv::Rodrigues(rvec_single, R);
+					double euler_R;
+					double euler_P;
+					double euler_Y;
+					rotMatrixToEulerAngles(R, euler_R, euler_P, euler_Y);
+					target_object_pose.r = euler_R;
+					target_object_pose.p = euler_P;
+					target_object_pose.yw = euler_Y;
 				} else if (current_id == 1) { // TOP LEFT CORNER
-					top_left_m_pose.r = rvec_single.at<double>(0, 0);
-					top_left_m_pose.p = rvec_single.at<double>(0, 1);
-					top_left_m_pose.yw = rvec_single.at<double>(0, 2);
 					top_left_m_pose.x = tvec_single.at<double>(0, 0);
 					top_left_m_pose.y = tvec_single.at<double>(0, 1);
 					top_left_m_pose.z = tvec_single.at<double>(0, 2);
+					cv::Mat R;
+					cv::Rodrigues(rvec_single, R);
+					double euler_R;
+					double euler_P;
+					double euler_Y;
+					rotMatrixToEulerAngles(R, euler_R, euler_P, euler_Y);
+					top_left_m_pose.r = euler_R;
+					top_left_m_pose.p = euler_P;
+					top_left_m_pose.yw = euler_Y;
 				}
 			}
-			double curr_x = target_object_pose.x;
-			double curr_y = target_object_pose.y;
-			
-			double top_left_corner_x = top_left_m_pose.x;
-			double top_left_corner_y = top_left_m_pose.y; 
 				
-			double distance = std::sqrt((curr_x - top_left_corner_x) * (curr_x - top_left_corner_x) + (curr_y - top_left_corner_y) * (curr_y - top_left_corner_y));
+			double distance = gradeDistanceMetric(target_object_pose);
 			std::stringstream ss;
 			ss << std::fixed << std::setprecision(4) << "Dist: " << distance;
 			std::string dist_text = ss.str();
@@ -275,16 +344,24 @@ private:
 		} else {
 			std::cerr << "No ArUco marker found." << std::endl;
 		}
-		
 		// TODO: Ideally, the following poses should be true:
 		/*
-		[main-1] ID 1 has tvec: [-0.02261585825783664, -0.04563866880499076, 0.2964818466842044] and rvec: [0.5512701218469557, -2.997373104571034, -0.08813415073767798]
-		[main-1] ID 2 has tvec: [0.07742773227251662, -0.06253287122362568, 0.304633047630919] and rvec: [2.09123639890954, -2.056450963305633, -0.9875874028890603]
+		POSE OF ID0(object) at END_EFFECTOR BEGIN: 
+		[camdbg-1] ID 1 has tvec: [0.07730741100712113, 0.06207665734340477, 0.2991301244755749] and rvec: [-2.149722751548426, 2.16264255794435, 0.09551008417326658]
+
+		POSE OF ID0(object) at :
+		Goal position is: (0.057321 0.040886 0.301466)
+
+		POSE OF TOP-LEFT marker(goal position anchor):
+		[main-1] ID 1 has tvec: [-0.04657767203672131, -0.07397812788536889, 0.3073267657800779] and rvec: [-2.304558565816952, 2.223394781272074, 0.1611281108275131]
+
 		*/
-		
 		return target_object_pose;
 	}
-	
+
+	/*
+	 * Opens camera for exactly one frame for capture
+	 */	
 	cv::Mat captureSingleFrame() {
 		RCLCPP_INFO(this->get_logger(), "Opening camera device %d...", camera_device_index_);
 		cv::VideoCapture cap(camera_device_index_);
@@ -317,6 +394,18 @@ private:
 		return frame;
 	}
 	
+	void rotMatrixToEulerAngles(const cv::Mat& R, double& roll, double& pitch, double& yaw) {
+		CV_Assert(R.rows == 3 && R.cols == 3 && R.type() == CV_64F);
+		double R31 = R.at<double>(2, 0);
+		pitch = std::asin(-R31); 
+		roll = std::atan2(R.at<double>(2, 1), R.at<double>(2, 2));
+		yaw = std::atan2(R.at<double>(1, 0), R.at<double>(0, 0));
+		roll = roll * 180.0 / M_PI;
+		pitch = pitch * 180.0 / M_PI;
+		yaw = yaw * 180.0 / M_PI;
+	}
+
+	// TODO: DEPRECATE OR CHANGE LOGIC AFTER MPC OPTIM IS DONE	
     void chooseNextTarget() {
 		double x_pos = curr_x_;
 		double y_pos = curr_y_;
@@ -340,6 +429,9 @@ private:
         RCLCPP_INFO(this->get_logger(), "New Target: (%.4f, %.4f, %.4f)", traj_target_x_, traj_target_y_, traj_target_z_);
     }
 
+	/*
+	 * Creates smooth trajectory between two Points for end-effector
+	 */
 	void moveEESmooth(const struct Point& currEEPos, const struct Point& targetEEPos, const double total_duration_s) {
         if (total_duration_s <= 0.0) return;
 
@@ -428,14 +520,16 @@ private:
 
 		publisher_->publish(std::move(msg));
 	}
-
-	double GOAL_X_;
-	double GOAL_Y_;
-	double GOAL_Z_;
 	
+	const int PLAN_HORIZON = 4;
+
 	double ZERO_X_;
 	double ZERO_Y_;
 	double ZERO_Z_;
+
+	double GOAL_X_;
+	double GOAL_Y_;
+	double GOAL_YAW_;
 
 	rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_;

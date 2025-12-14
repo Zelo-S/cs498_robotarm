@@ -153,21 +153,27 @@ private:
 			double current_distance = gradeDistanceMetric(objectPose);
 			if(current_distance <= GOAL_DISTANCE){
 				RCLCPP_INFO(this->get_logger(), "GOAL DISTANCE REACHED, DONE!");
-				break;
+					cv::destroyAllWindows();
+					rclcpp::shutdown();
 			}
 
 			RCLCPP_INFO(this->get_logger(), "5) Plannning next %d horizon...", PLAN_HORIZON);
-			int next_action = planUsingHorizon(objectPose);
+			// int next_action = planUsingHorizon(objectPose);
 			
-            RCLCPP_INFO(this->get_logger(), "Goal position is: (%f %f %f) with rot (%f %f %f)", objectPose.x, objectPose.y, objectPose.z, objectPose.r, objectPose.p, objectPose.yw);
-
             // 5. Restore current position(the one before going back to start position) 
             RCLCPP_INFO(this->get_logger(), "6) Restoring to target position...");
             moveEESmooth(zeroEEPos, currEEPos, 1.5);
 
             // 6. Update state index for current iteration to send to IK planner
-			step_index_ = next_action;
-            RCLCPP_INFO(this->get_logger(), "--- SEQUENCE COMPLETE. Next direction: %d ---", step_index_);
+			if (objectPose.yw >= (-135 + 5)){
+				step_index_ = 7;
+			}else if (objectPose.yw <= (-135 - 5)){
+				step_index_ = 1;
+			}else {
+				step_index_ = 0;
+			}
+			RCLCPP_INFO(this->get_logger(), "Object position is: (%f %f) with yaw (%f), chose dir: %d", objectPose.x, objectPose.y, objectPose.yw, step_index_);
+            RCLCPP_INFO(this->get_logger(), "--- SEQUENCE COMPLETE ---", step_index_);
 
             getEETargetPosition(); // info for robot to decide what traj_target is 
 

@@ -45,12 +45,21 @@ target_include_directories(camdbg PRIVATE
   $<INSTALL_INTERFACE:include>)
 ament_target_dependencies(camdbg ${dependencies})
 
+add_executable(startpos
+  src/startpos.cpp
+)
+target_include_directories(startpos PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+ament_target_dependencies(startpos ${dependencies})
+
 ###########
 # install #
 ###########
 install(TARGETS
   main
   camdbg
+  startpos
   DESTINATION lib/${PROJECT_NAME}
 )
 

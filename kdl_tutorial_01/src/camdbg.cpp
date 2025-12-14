@@ -12,6 +12,17 @@ struct ObjectPose {
 	double p;
 	double yw;	
 };
+
+void rotMatrixToEulerAngles(const cv::Mat& R, double& roll, double& pitch, double& yaw) {
+    CV_Assert(R.rows == 3 && R.cols == 3 && R.type() == CV_64F);
+    double R31 = R.at<double>(2, 0);
+    pitch = std::asin(-R31); 
+    roll = std::atan2(R.at<double>(2, 1), R.at<double>(2, 2));
+    yaw = std::atan2(R.at<double>(1, 0), R.at<double>(0, 0));
+    roll = roll * 180.0 / M_PI;
+    pitch = pitch * 180.0 / M_PI;
+    yaw = yaw * 180.0 / M_PI;
+}
 	
 void updateObjectPoseArUco(cv::Mat frame) {
     cv::Mat camera_matrix = (cv::Mat_<double>(3, 3) <<
@@ -61,9 +72,13 @@ void updateObjectPoseArUco(cv::Mat frame) {
                 target_object_pose.x = tvec_single.at<double>(0, 0);
                 target_object_pose.y = tvec_single.at<double>(0, 1);
                 target_object_pose.z = tvec_single.at<double>(0, 2);
-                cv::Mat R; // R will be a 3x3 rotation matrix
+                cv::Mat R;
                 cv::Rodrigues(rvec_single, R);
-                printf("ID %d has tvec: (%.4f, %.4f, %.4f) and rvec: (%.4f, %.4f, %.4f)\n", i, target_object_pose.x, target_object_pose.y, target_object_pose.z, R.at<double>());
+                double euler_R;
+                double euler_P;
+                double euler_Y;
+                rotMatrixToEulerAngles(R, euler_R, euler_P, euler_Y);
+                printf("ID %d has tvec: (%.4f, %.4f, %.4f) and rvec: (%.4f, %.4f, %.4f)\n", i, target_object_pose.x, target_object_pose.y, target_object_pose.z, euler_R, euler_P, euler_Y);
             } else if (current_id == 1) { // TOP LEFT CORNER
                 top_left_m_pose.r = rvec_single.at<double>(0, 0);
                 top_left_m_pose.p = rvec_single.at<double>(0, 1);

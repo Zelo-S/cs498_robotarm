@@ -62,6 +62,8 @@ public:
 		GOAL_X_ =   -0.0177;
 		GOAL_Y_ =   -0.0345;
 		GOAL_YAW_ = -0.4210;
+		
+		GOAL_DISTANCE = 0.025;
 
 		curr_x_ = ZERO_X_;
 		curr_y_ = ZERO_Y_;
@@ -134,42 +136,25 @@ private:
 		std::mt19937 gen(rd());
 		std::uniform_int_distribution<> distrib(0, 7);
 		int iter = 0;
+		Point zeroEEPos = {ZERO_X_, ZERO_Y_, ZERO_Z_};
+		Point targetEEPos = {ZERO_X_, ZERO_Y_, ZERO_Z_};
 		while (rclcpp::ok()) {
             RCLCPP_INFO(this->get_logger(), "--- STARTING NEW SEQUENCE ITERATION ---");
-
-            // 1. Choose one of the 8 different positions from current position 
-            chooseNextTarget();
-			int retry_choose_attempt = 0;
-			while(traj_target_x_ < ZERO_X_-0.001){
-				if(retry_choose_attempt > 100){
-					break;
-				}
-				RCLCPP_INFO(this->get_logger(), "End-effector to collide base to go from %f to %f  -- retrying chooseNextTarget #%d", curr_x_, traj_target_x_, retry_choose_attempt);
-				step_index_ = distrib(gen);
-				chooseNextTarget();
-				retry_choose_attempt++;
-			}
-
-            // 2. IK calculate, move smooth to the chosen target position(pushing block move)
             Point currEEPos = {curr_x_, curr_y_, curr_z_};
-            Point targetEEPos = {traj_target_x_, traj_target_y_, traj_target_z_};
-            Point zeroEEPos = {ZERO_X_, ZERO_Y_, ZERO_Z_};
-            RCLCPP_INFO(this->get_logger(), "2) Moving to target...");
-            moveEESmooth(currEEPos, targetEEPos, 2.0);
-
-            // 2.a Update current position after reaching target
-            curr_x_ = traj_target_x_;
-            curr_y_ = traj_target_y_;
-            curr_z_ = traj_target_z_;
 
             // 3. Go back to start position to get better camera top down view 
             RCLCPP_INFO(this->get_logger(), "3) Moving to zero/reset position...");
-            moveEESmooth(targetEEPos, zeroEEPos, 1.5);
+            moveEESmooth(currEEPos, zeroEEPos, 1.5);
 
             // 4. Camera has clear view of scene, now take picture and state est 
             RCLCPP_INFO(this->get_logger(), "4) *** Capturing frame directly from camera ***");
             cv::Mat captured_frame = captureSingleFrame();
 			const ObjectPose objectPose = updateObjectPoseArUco(captured_frame); // TODO: updates position of ID0, 1, and 2
+			double current_distance = gradeDistanceMetric(objectPose);
+			if(current_distance <= GOAL_DISTANCE){
+				RCLCPP_INFO(this->get_logger(), "GOAL DISTANCE REACHED, DONE!");
+				break;
+			}
 
 			RCLCPP_INFO(this->get_logger(), "5) Plannning next %d horizon...", PLAN_HORIZON);
 			int next_action = planUsingHorizon(objectPose);
@@ -178,11 +163,24 @@ private:
 
             // 5. Restore current position(the one before going back to start position) 
             RCLCPP_INFO(this->get_logger(), "6) Restoring to target position...");
-            moveEESmooth(zeroEEPos, targetEEPos, 1.5);
+            moveEESmooth(zeroEEPos, currEEPos, 1.5);
 
-            // 6. Update random state index for next iteration, in MPC, this will be chosen more "wisely"
-			step_index_ = 0; // distrib(gen);
+            // 6. Update state index for current iteration to send to IK planner
+			step_index_ = next_action;
             RCLCPP_INFO(this->get_logger(), "--- SEQUENCE COMPLETE. Next direction: %d ---", step_index_);
+
+            getEETargetPosition(); // info for robot to decide what traj_target is 
+
+            // 2. IK calculate, move smooth to the chosen target position(pushing block move)
+			targetEEPos = {traj_target_x_, traj_target_y_, ZERO_Z_};
+            RCLCPP_INFO(this->get_logger(), "2) Moving to target...");
+            moveEESmooth(currEEPos, targetEEPos, 2.0);
+
+            // 2.a Update current position after reaching target
+            curr_x_ = traj_target_x_;
+            curr_y_ = traj_target_y_;
+            curr_z_ = traj_target_z_;
+			         
             
             // 6. Just wait a bit
             std::this_thread::sleep_for(500ms);
@@ -194,7 +192,7 @@ private:
 	 * Runs predictNextState for PLAN_HORIZON # of steps, selects next best direction to push in using MPC
 	 */
 	int planUsingHorizon(const ObjectPose start_object_pose) {
-		RCLCPP_INFO(this->get_logger(), "\n\t====== Start Planning ======\n");
+		RCLCPP_INFO(this->get_logger(), "\n\n\t====== Start Planning ======");
 		const std::vector<int> ACTIONS = {0, 1, 7};
 
 		ObjectPose curr_object_pose;
@@ -247,12 +245,12 @@ private:
 		ObjectPose next_object_pose;
 		next_object_pose= {target_object_pose.x, target_object_pose.y, target_object_pose.z, target_object_pose.r, target_object_pose.p, target_object_pose.yw};
 		if (direction == 0){ // Straight +x push
-			next_object_pose.x -= step_size_ / std::sqrt(2); // TODO: X-push direction will be negative in aruco frame
-			next_object_pose.y -= step_size_ / std::sqrt(2); // TODO: Y-push direction will be negative in aruco frame
+			next_object_pose.x += std::cos(-135 * M_PI / 180.0) * step_size_ / std::sqrt(2);
+			next_object_pose.y += std::sin(-135 * M_PI / 180.0) * step_size_ / std::sqrt(2);
 		}else if (direction == 1){ // Diagonal left-hand push
-			next_object_pose.y -= step_size_;
+			next_object_pose.x += std::cos(-180 * M_PI / 180.0) * step_size_ / std::sqrt(2);
 		}else if (direction == 7){ // Diagonal right-hand push
-			next_object_pose.x -= step_size_;
+			next_object_pose.y += std::sin(-90 * M_PI / 180.0) * step_size_ / std::sqrt(2);
 		}
 		return next_object_pose;
 	}	
@@ -406,7 +404,7 @@ private:
 	}
 
 	// TODO: DEPRECATE OR CHANGE LOGIC AFTER MPC OPTIM IS DONE	
-    void chooseNextTarget() {
+    void getEETargetPosition() {
 		double x_pos = curr_x_;
 		double y_pos = curr_y_;
 		double z_pos = curr_z_;
@@ -530,6 +528,8 @@ private:
 	double GOAL_X_;
 	double GOAL_Y_;
 	double GOAL_YAW_;
+	
+	double GOAL_DISTANCE;
 
 	rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_;

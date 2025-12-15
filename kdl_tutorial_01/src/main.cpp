@@ -63,7 +63,7 @@ public:
 		GOAL_Y_ =   -0.0345;
 		GOAL_YAW_ = -0.4210;
 		
-		GOAL_DISTANCE = 0.025;
+		GOAL_DISTANCE = 0.035;
 
 		curr_x_ = ZERO_X_;
 		curr_y_ = ZERO_Y_;
@@ -131,10 +131,9 @@ private:
 		if (!solver_ || !rclcpp::ok()) {
 			return;
 		}
+		int METHOD = 0; // 0 = MPC, 1 = Heuristic
+		std::vector<int> steps_taken;
 		// TODO: definitely cleaner way to do this later
-		std::random_device rd;
-		std::mt19937 gen(rd());
-		std::uniform_int_distribution<> distrib(0, 7);
 		int iter = 0;
 		Point zeroEEPos = {ZERO_X_, ZERO_Y_, ZERO_Z_};
 		Point targetEEPos = {ZERO_X_, ZERO_Y_, ZERO_Z_};
@@ -151,29 +150,69 @@ private:
             cv::Mat captured_frame = captureSingleFrame();
 			const ObjectPose objectPose = updateObjectPoseArUco(captured_frame); // TODO: updates position of ID0, 1, and 2
 			double current_distance = gradeDistanceMetric(objectPose);
-			if(current_distance <= GOAL_DISTANCE){
-				RCLCPP_INFO(this->get_logger(), "GOAL DISTANCE REACHED, DONE!");
-					cv::destroyAllWindows();
-					rclcpp::shutdown();
+			if(current_distance <= GOAL_DISTANCE && objectPose.yw < -132 && objectPose.yw > -138){
+
+				RCLCPP_INFO(this->get_logger(), "SUCCESS: GOAL DISTANCE REACHED, DONE!");
+				std::stringstream ss;
+				ss << "Action history was: [";
+				for(int i : steps_taken){
+					ss << i << " ";
+				}
+				ss << "]";
+				RCLCPP_INFO(this->get_logger(), "%s with final distance %f and yaw %f", ss.str().c_str(), current_distance, objectPose.yw);
+
+				std::this_thread::sleep_for(350ms);
+				cv::destroyAllWindows();
+				rclcpp::shutdown();
+			}
+			if(iter > 25){
+
+				RCLCPP_INFO(this->get_logger(), "FAILURE: 25 ITERS REACHED, BREAKING!");
+				std::stringstream ss;
+				ss << "Action history was: [";
+				for(int i : steps_taken){
+					ss << i << " ";
+				}
+				ss << "]";
+				RCLCPP_INFO(this->get_logger(), "%s with final distance %f and yaw %f", ss.str().c_str(), current_distance, objectPose.yw);
+				
+				std::this_thread::sleep_for(350ms);
+				cv::destroyAllWindows();
+				rclcpp::shutdown();
 			}
 
 			RCLCPP_INFO(this->get_logger(), "5) Plannning next %d horizon...", PLAN_HORIZON);
-			// int next_action = planUsingHorizon(objectPose);
 			
             // 5. Restore current position(the one before going back to start position) 
             RCLCPP_INFO(this->get_logger(), "6) Restoring to target position...");
-            moveEESmooth(zeroEEPos, currEEPos, 1.5);
+            moveEESmooth(zeroEEPos, currEEPos, 2.0);
 
-            // 6. Update state index for current iteration to send to IK planner
-			if (objectPose.yw >= (-135 + 5)){
-				step_index_ = 7;
-			}else if (objectPose.yw <= (-135 - 5)){
-				step_index_ = 1;
-			}else {
-				step_index_ = 0;
+			
+			if(METHOD == 0){ // TODO: If MPC
+				int next_action = planUsingHorizon(objectPose);
+				step_index_ = next_action;
+			}else{ // TODO: If Heuristic
+				if (objectPose.yw >= (-(45 + ANGL_OFFSET) + 5)){
+					step_index_ = 7;
+				}else if (objectPose.yw <= (-(45 + ANGL_OFFSET)- 5)){
+					step_index_ = 1;
+				}else { // within angle heading, so now focus on distance to goal
+					step_index_ = 0;
+					const std::vector<int> ACTIONS = {0, 1, 7};
+					double min_distance = 100;
+					for(int action : ACTIONS){
+						double next_distance_score = gradeDistanceMetric(predictNextState(objectPose, action));
+						if (next_distance_score < min_distance){
+							min_distance = next_distance_score;
+							step_index_ = action;
+						}
+					}
+				}
 			}
-			RCLCPP_INFO(this->get_logger(), "Object position is: (%f %f) with yaw (%f), chose dir: %d", objectPose.x, objectPose.y, objectPose.yw, step_index_);
-            RCLCPP_INFO(this->get_logger(), "--- SEQUENCE COMPLETE ---", step_index_);
+			steps_taken.push_back(step_index_);
+
+			RCLCPP_INFO(this->get_logger(), "Iter %d: Object position is: (%f %f) with yaw (%f), chose dir: %d", iter, objectPose.x, objectPose.y, objectPose.yw, step_index_);
+            std::this_thread::sleep_for(150ms);
 
             getEETargetPosition(); // info for robot to decide what traj_target is 
 
@@ -187,6 +226,7 @@ private:
             curr_y_ = traj_target_y_;
             curr_z_ = traj_target_z_;
 			         
+            RCLCPP_INFO(this->get_logger(), "--- SEQUENCE COMPLETE ---");
             
             // 6. Just wait a bit
             std::this_thread::sleep_for(500ms);
@@ -206,7 +246,7 @@ private:
 
 		ObjectPose next_step_object_pose;
 		int next_step_action = -1;
-
+		
 		ObjectPose planning_object_pose = {start_object_pose.x, start_object_pose.y, start_object_pose.z, start_object_pose.r, start_object_pose.p, start_object_pose.yw};
 		for(int i=0; i<PLAN_HORIZON; ++i){
 
@@ -255,8 +295,10 @@ private:
 			next_object_pose.y += std::sin(-135 * M_PI / 180.0) * step_size_ / std::sqrt(2);
 		}else if (direction == 1){ // Diagonal left-hand push
 			next_object_pose.x += std::cos(-180 * M_PI / 180.0) * step_size_ / std::sqrt(2);
+			next_object_pose.yw += 5;
 		}else if (direction == 7){ // Diagonal right-hand push
 			next_object_pose.y += std::sin(-90 * M_PI / 180.0) * step_size_ / std::sqrt(2);
+			next_object_pose.yw -= 5;
 		}
 		return next_object_pose;
 	}	
@@ -300,7 +342,7 @@ private:
 				int current_id = marker_ids[i];
 				cv::Mat rvec_single = rvecs.row(i);
 				cv::Mat tvec_single = tvecs.row(i);
-				std::cout << "ID " << i << " has tvec: " << tvec_single << " and rvec: " << rvec_single << "\n";
+				// std::cout << "ID " << i << " has tvec: " << tvec_single << " and rvec: " << rvec_single << "\n";
 				cv::aruco::drawAxis(debug_frame, camera_matrix, dist_coeffs, rvec_single, tvec_single, MARKER_LENGTH_M);
 
 				if (current_id == 0) { // OBJECT
@@ -534,6 +576,7 @@ private:
 	double GOAL_X_;
 	double GOAL_Y_;
 	double GOAL_YAW_;
+	const double ANGL_OFFSET = 90;
 	
 	double GOAL_DISTANCE;
 
